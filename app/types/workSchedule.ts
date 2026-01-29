@@ -294,11 +294,11 @@ function buildFlexibleRules(form: WorkScheduleForm): FlexibleRule[] {
 }
 
 /* =========================================================
- * Backend → Form ✅ تحديث شامل
+ * Backend → Form (تحديث شامل)
  * ========================================================= */
 
 export function transformScheduleToForm(
-  schedule: WorkSchedule
+  schedule: WorkSchedule & { rules?: any[], is_uniform?: boolean }
 ): WorkScheduleForm {
   const form: WorkScheduleForm = {
     ...emptyWorkScheduleForm(),
@@ -308,56 +308,58 @@ export function transformScheduleToForm(
     description_ar: schedule.description_ar ?? "",
     description_en: schedule.description_en ?? "",
     is_active: schedule.is_active,
-    is_uniform: schedule.is_uniform,
+    is_uniform: schedule.is_uniform ?? true, // ✅ استخدم is_uniform من API مباشرة
   };
 
+  const rules = schedule.rules || [];
+
+  if (rules.length === 0) {
+    return form;
+  }
+
   // =============== FIXED RULES ===============
-  if (schedule.type === "fixed" && schedule.fixed_rules && schedule.fixed_rules.length > 0) {
-    const rules = schedule.fixed_rules;
-    const uniqueDays = new Set(rules.map((r) => r.day_of_week));
+  if (schedule.type === "fixed") {
+    const fixedRules = rules as any[];
 
-    // التحقق: هل النظام موحد (7 أيام بدون فترات متعددة)؟
-    const isUniform = uniqueDays.size === 7 && !rules.some((r) => (r.period_index || 1) > 1);
+    if (form.is_uniform) {
+      // نظام موحد ثابت
+      const firstWorkingRule = fixedRules.find((r) => r.is_working_day);
 
-    if (isUniform) {
-      // نظام موحد
-      form.is_uniform = true;
-      const firstWorkingRule = rules.find((r) => r.is_working_day);
-
-      form.uniform_fixed = {
-        working_days: rules
-          .filter((r) => r.is_working_day)
-          .map((r) => r.day_of_week as DayOfWeek),
-        start_time: firstWorkingRule?.start_time || "08:00",
-        end_time: firstWorkingRule?.end_time || "16:00",
-        grace_period_in_minutes: firstWorkingRule?.grace_period_in_minutes || 0,
-        early_leave_grace_minutes: firstWorkingRule?.early_leave_grace_minutes || 0,
-      };
+      if (firstWorkingRule) {
+        form.uniform_fixed = {
+          working_days: fixedRules
+            .filter((r) => r.is_working_day && r.period_index === 1)
+            .map((r) => r.day_of_week as DayOfWeek),
+          start_time: firstWorkingRule.start_time?.substring(0, 5) || "08:00",
+          end_time: firstWorkingRule.end_time?.substring(0, 5) || "16:00",
+          grace_period_in_minutes: firstWorkingRule.grace_period_in_minutes || 0,
+          early_leave_grace_minutes: firstWorkingRule.early_leave_grace_minutes || 0,
+        };
+      }
     } else {
-      // نظام مخصص
-      form.is_uniform = false;
+      // نظام مخصص ثابت
       const customDaysMap = new Map<DayOfWeek, CustomFixedDay>();
 
-      rules.forEach((rule) => {
-        const dayOfWeek = rule.day_of_week;
+      fixedRules.forEach((rule) => {
+        const dayOfWeek = rule.day_of_week as DayOfWeek;
 
         if (!customDaysMap.has(dayOfWeek)) {
           customDaysMap.set(dayOfWeek, {
             day_of_week: dayOfWeek,
-            is_working_day: rule.is_working_day,
+            is_working_day: rule.is_working_day === 1 || rule.is_working_day === true,
             periods: [],
           });
         }
 
         const day = customDaysMap.get(dayOfWeek)!;
 
-        if (rule.is_working_day) {
+        if (rule.is_working_day === 1 || rule.is_working_day === true) {
           day.periods.push({
             period_index: rule.period_index,
-            start_time: rule.start_time || "08:00",
-            end_time: rule.end_time || "16:00",
-            grace_period_in_minutes: rule.grace_period_in_minutes,
-            early_leave_grace_minutes: rule.early_leave_grace_minutes,
+            start_time: rule.start_time?.substring(0, 5) || "08:00",
+            end_time: rule.end_time?.substring(0, 5) || "16:00",
+            grace_period_in_minutes: rule.grace_period_in_minutes || 0,
+            early_leave_grace_minutes: rule.early_leave_grace_minutes || 0,
           });
         }
       });
@@ -369,32 +371,28 @@ export function transformScheduleToForm(
   }
 
   // =============== FLEXIBLE RULES ===============
-  if (schedule.type === "flexible" && schedule.flexible_rules && schedule.flexible_rules.length > 0) {
-    const rules = schedule.flexible_rules;
-    const uniqueDays = new Set(rules.map((r) => r.day_of_week));
-    const isUniform = uniqueDays.size === 7;
+  if (schedule.type === "flexible") {
+    const flexibleRules = rules as any[];
 
-    if (isUniform) {
-      // نظام موحد
-      form.is_uniform = true;
-      const firstWorkingRule = rules.find((r) => r.is_working_day);
+    if (form.is_uniform) {
+      // نظام موحد مرن
+      const firstWorkingRule = flexibleRules.find((r) => r.is_working_day);
 
-      form.uniform_flexible = {
-        working_days: rules
-          .filter((r) => r.is_working_day)
-          .map((r) => r.day_of_week as DayOfWeek),
-        required_hours: firstWorkingRule
-          ? Math.round((firstWorkingRule.required_minutes / 60) * 10) / 10
-          : 8,
-      };
+      if (firstWorkingRule) {
+        form.uniform_flexible = {
+          working_days: flexibleRules
+            .filter((r) => r.is_working_day === 1 || r.is_working_day === true)
+            .map((r) => r.day_of_week as DayOfWeek),
+          required_hours: Math.round((firstWorkingRule.required_minutes / 60) * 10) / 10 || 8,
+        };
+      }
     } else {
-      // نظام مخصص
-      form.is_uniform = false;
-      form.custom_flexible_days = rules
+      // نظام مخصص مرن
+      form.custom_flexible_days = flexibleRules
         .map((rule) => ({
-          day_of_week: rule.day_of_week,
-          is_working_day: rule.is_working_day,
-          required_hours: Math.round((rule.required_minutes / 60) * 10) / 10,
+          day_of_week: rule.day_of_week as DayOfWeek,
+          is_working_day: rule.is_working_day === 1 || rule.is_working_day === true,
+          required_hours: Math.round((rule.required_minutes / 60) * 10) / 10 || 0,
         }))
         .sort((a, b) => a.day_of_week - b.day_of_week);
     }
