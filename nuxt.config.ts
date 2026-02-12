@@ -9,7 +9,7 @@ export default defineNuxtConfig({
 
   app: {
     // خليه افتراضي /
-    baseURL: '/',
+    baseURL: '/HRSystemFrontend/',
   },
 
   // بما أنك ssr:false والديبلوي على Vercel، ألغِ الـ prerender مؤقتًا
