@@ -1,4 +1,4 @@
-// ~/composables/payroll-systems/isPayrollSystemRow.ts
+
 import type { PayrollSystemRow } from "~/types/PayrollSystem";
 
 export function isPayrollSystemRow(row: unknown): row is PayrollSystemRow {
