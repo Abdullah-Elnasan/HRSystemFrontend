@@ -1,8 +1,14 @@
 /**
  * تحويل جميع قيم boolean إلى 0/1 بشكل عميق
+ * يتخطى File objects لأنها يجب أن تبقى كما هي
  */
 export function convertBooleansToNumbers(obj: any): any {
   if (obj === null || obj === undefined) return obj
+
+  // Skip File objects - they should remain unchanged
+  if (obj instanceof File) {
+    return obj
+  }
 
   if (typeof obj === 'boolean') {
     return obj ? 1 : 0
@@ -15,7 +21,13 @@ export function convertBooleansToNumbers(obj: any): any {
   if (typeof obj === 'object') {
     const converted: any = {}
     for (const key in obj) {
-      converted[key] = convertBooleansToNumbers(obj[key])
+      const value = obj[key]
+      // Skip File objects - they should remain unchanged
+      if (value instanceof File) {
+        converted[key] = value
+      } else {
+        converted[key] = convertBooleansToNumbers(value)
+      }
     }
     return converted
   }
@@ -47,25 +59,63 @@ export function toFormData(obj: any, formData = new FormData(), parentKey = ''):
     } else {
       obj.forEach((item, index) => {
         const key = `${parentKey}[${index}]`
-        if (typeof item === 'object' && item !== null && !(item instanceof File)) {
-          toFormData(item, formData, key)
-        } else {
-          formData.append(key, item?.toString() ?? '')
-        }
+        toFormData(item, formData, key)
       })
     }
     return formData
   }
 
-  if (typeof obj === 'object' && !(obj instanceof File)) {
+  if (typeof obj === 'object') {
     Object.keys(obj).forEach(key => {
       const value = obj[key]
       const formKey = parentKey ? `${parentKey}[${key}]` : key
 
       if (value === null || value === undefined) {
-        formData.append(formKey, '')
-      } else if (typeof value === 'object' && !(value instanceof File)) {
-        toFormData(value, formData, formKey)
+        // Skip null/undefined values
+        return
+      } else if (value instanceof File) {
+        // File object - append directly with the key name (not nested)
+        // Use the original key to avoid nesting like image[name], image[size], etc.
+        formData.append(key, value)
+      } else if (value instanceof FileList) {
+        // FileList - append all files
+        Array.from(value).forEach((file, index) => {
+          formData.append(index === 0 ? formKey : `${formKey}[${index}]`, file)
+        })
+      } else if (value instanceof Date) {
+        formData.append(formKey, value.toISOString())
+      } else if (typeof value === 'boolean') {
+        formData.append(formKey, value ? '1' : '0')
+      } else if (Array.isArray(value)) {
+        // Handle arrays
+        if (value.length === 0) {
+          formData.append(`${formKey}[]`, '')
+        } else {
+          value.forEach((item, index) => {
+            const arrayKey = `${formKey}[${index}]`
+            toFormData(item, formData, arrayKey)
+          })
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        // Check if it's a File-like object (has File properties but lost instanceof check)
+        // This can happen when File is stored in reactive objects in Vue
+        const isFileLike =
+          value.constructor &&
+          (value.constructor.name === 'File' ||
+           (typeof value.name === 'string' &&
+            typeof value.size === 'number' &&
+            typeof value.type === 'string' &&
+            typeof value.lastModified === 'number' &&
+            typeof value.arrayBuffer === 'function'))
+
+        if (isFileLike) {
+          // It's a File object - append it directly with the key name (not nested)
+          // Use the original key, not formKey, to avoid nesting
+          formData.append(key, value as File)
+        } else {
+          // Regular object - recurse
+          toFormData(value, formData, formKey)
+        }
       } else {
         formData.append(formKey, value.toString())
       }
@@ -174,6 +224,48 @@ function buildFlexibleRules(payload: any): any[] {
 }
 
 /**
+ * استخراج File objects من payload قبل التحويل
+ * هذا يحل مشكلة فقدان instanceof File عند تخزين File في reactive objects
+ */
+function extractFiles(payload: Record<string, any>): { files: Record<string, File>, cleanPayload: Record<string, any> } {
+  const files: Record<string, File> = {}
+  const cleanPayload: Record<string, any> = {}
+
+  for (const key in payload) {
+    const value = payload[key]
+
+    // Check if value is a File instance
+    if (value instanceof File) {
+      files[key] = value
+      // Don't include File in cleanPayload - will be added separately
+      continue
+    }
+
+    // Check if value is a File-like object (lost instanceof check due to Vue reactivity)
+    if (
+      value &&
+      typeof value === 'object' &&
+      value.constructor &&
+      (value.constructor.name === 'File' ||
+        (typeof value.name === 'string' &&
+          typeof value.size === 'number' &&
+          typeof value.type === 'string' &&
+          typeof value.lastModified === 'number' &&
+          typeof value.arrayBuffer === 'function'))
+    ) {
+      // It's a File object - store it and skip from cleanPayload
+      files[key] = value as File
+      continue
+    }
+
+    // Regular value - include in cleanPayload
+    cleanPayload[key] = value
+  }
+
+  return { files, cleanPayload }
+}
+
+/**
  * معالجة البيانات قبل الإرسال للـ API
  */
 export function processPayloadForAPI(payload: Record<string, any> | FormData): FormData {
@@ -181,7 +273,11 @@ export function processPayloadForAPI(payload: Record<string, any> | FormData): F
     return payload
   }
 
-  let processedPayload = convertBooleansToNumbers(payload)
+  // Extract File objects before processing
+  // This prevents File objects from being converted to nested objects
+  const { files, cleanPayload } = extractFiles(payload)
+
+  let processedPayload = convertBooleansToNumbers(cleanPayload)
 
   // تحويل WorkScheduleForm إذا كانت موجودة
   if (
@@ -194,5 +290,16 @@ export function processPayloadForAPI(payload: Record<string, any> | FormData): F
     processedPayload = transformWorkSchedulePayload(processedPayload)
   }
 
-  return toFormData(processedPayload)
+  // Convert to FormData
+  const formData = toFormData(processedPayload)
+
+  // Add File objects directly to FormData (not nested)
+  for (const key in files) {
+    const file = files[key]
+    if (file) {
+      formData.append(key, file)
+    }
+  }
+
+  return formData
 }

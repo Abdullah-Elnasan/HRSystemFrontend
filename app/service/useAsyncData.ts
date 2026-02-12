@@ -41,6 +41,7 @@ export async function fetchList<T>(options: FetchListOptions): Promise<T> {
   const res = await $fetch<T>(endpoint, {
     query,
     signal,
+    credentials: 'include', // Required for Sanctum SPA cookies
   })
 
   return res

@@ -7,5 +7,7 @@
 definePageMeta({
   layout: "dashboard",
   title: "الصفحة الرئيسية ",
+  auth: true,
+  middleware: "auth" as any,
 });
 </script>

@@ -146,8 +146,8 @@ export async function apiFetch<T>(
   }
 
   const url = params.toString()
-    ? `${config.public.apiBase}${endpoint}?${params}`
-    : `${config.public.apiBase}${endpoint}`
+    ? `${config.public.apiBase}/api${endpoint}?${params}`
+    : `${config.public.apiBase}/api${endpoint}`
 
     console.log("API Fetch URL:", url);
   // ---------- FormData handling ----------
@@ -163,21 +163,32 @@ export async function apiFetch<T>(
 
 
   try {
-    console.log(config.public.apiToken);
-    console.log(config);
-    console.log('config.apiToken');
+    // Determine if this is an auth endpoint (should use credentials instead of Bearer token)
+    const isAuthEndpoint = endpoint.includes('/login') ||
+                          endpoint.includes('/logout') ||
+                          endpoint.includes('/api/user') ||
+                          endpoint.includes('/sanctum/csrf-cookie')
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...options.headers,
+    }
+
+    // Use Bearer token for non-auth endpoints, credentials for auth endpoints
+    if (!isAuthEndpoint && config.public.apiToken) {
+      headers.Authorization = `Bearer ${config.public.apiToken}`
+    }
+
     const res = await $fetch<T>(url, {
       method,
       body: options.body,
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${config.public.apiToken}`,
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...options.headers,
-      },
+      headers,
+      // Include credentials for Sanctum SPA authentication
+      credentials: isAuthEndpoint ? 'include' : undefined,
       timeout: 10_000,
-    });
-    return  res;
+    })
+    return res
   } catch (error: any) {
 
     throw createError({

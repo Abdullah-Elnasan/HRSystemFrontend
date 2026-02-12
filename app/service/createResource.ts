@@ -21,6 +21,7 @@ export async function createResource<T>({
     const res = await $fetch<ApiResponse<T>>(endpoint, {
       method: 'POST',
       body: formData,
+      credentials: 'include', // Required for Sanctum SPA cookies
     })
 
     const data = res.data

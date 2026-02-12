@@ -24,8 +24,17 @@
 
     <!-- الفوتر -->
     <template #footer="{ collapsed }">
-      <UButton :avatar="{ src: 'https://github.com/benjamincanac.png' }" :label="collapsed ? undefined : 'Benjamin'"
-        color="neutral" variant="ghost" class="w-full" :block="collapsed" />
+      <UButton
+        :avatar="{
+          src: userAvatar,
+          alt: userName || 'User'
+        }"
+        :label="collapsed ? undefined : userName"
+        color="neutral"
+        variant="ghost"
+        class="w-full"
+        :block="collapsed"
+      />
     </template>
   </UDashboardSidebar>
 </template>
@@ -34,6 +43,7 @@
 import type { NavigationMenuItem } from "@nuxt/ui";
 import { fa } from "zod/locales";
 import { useAttendancePending } from "~/composables/attendances/useAttendancePending";
+import { useAuthStore } from "~/stores/auth/auth";
 
 const { data, pagination } = await useAttendancePending();
 const safePagination = computed(() => ({
@@ -41,6 +51,52 @@ const safePagination = computed(() => ({
 }));
 console.log(safePagination);
 console.log(safePagination.value.total);
+
+// Get user data from auth store
+const authStore = useAuthStore();
+console.log(authStore.user);
+
+// Computed properties for user name and avatar
+const userName = computed(() => {
+  return authStore.user?.name || 'المستخدم'
+})
+
+const userAvatar = computed(() => {
+  const config = useRuntimeConfig()
+  const apiBase = config.public.apiBase || ''
+
+  // Check if user has image property
+  if (authStore.user?.employee?.image) {
+    const imageUrl = authStore.user.employee?.image
+    // If image is a relative path, prepend API base URL
+    if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+      return `${apiBase}/${imageUrl}`
+    }
+    // If image starts with /, it's already a full path
+    if (imageUrl && imageUrl.startsWith('/')) {
+      return `${apiBase}${imageUrl}`
+    }
+    return imageUrl
+  }
+  // Check if user has avatar property
+  console.log(authStore.user);
+  if (authStore.user?.employee && authStore.user.employee?.image) {
+    const avatarUrl = authStore.user.employee?.image
+    console.log('avatarUrl');
+    console.log(avatarUrl);
+    // If avatar is a relative path, prepend API base URL
+    if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('/')) {
+      return `${apiBase}/${avatarUrl}`
+    }
+    // If avatar starts with /, it's already a full path
+    if (avatarUrl && avatarUrl.startsWith('/')) {
+      return `${apiBase}${avatarUrl}`
+    }
+    return avatarUrl
+  }
+  // Default avatar or placeholder
+  return 'https://github.com/benjamincanac.png'
+})
 
 // const { wrapMouseDown } = useRtlResize();
 
