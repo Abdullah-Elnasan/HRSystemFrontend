@@ -64,9 +64,9 @@ export default defineNuxtConfig({
   debug: true,
 
   // لا تضع baseURL إذا على دومين/ساب دومين مستقل
-  // لا تضع ssr:false هنا
   ssr: false,
   app: { baseURL: '/' },
+  // لا تضع ssr:false هنا
 
   // routeRules: {
   //   '/': { ssr: true },
