@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PayrollSystemForm } from "~/types/PayrollSystem";
+import type { PayrollSystemForm } from "~/types/payrollSystem";
 import type { Field } from "~/components/generic-form.vue";
 import { useFormModel } from "~/composables/useFormModel";
 import { payrollSystemSchema } from "~/schemas/payroll-system.schema";

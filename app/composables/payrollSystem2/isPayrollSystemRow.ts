@@ -1,5 +1,5 @@
 
-import type { PayrollSystemRow } from "~/types/PayrollSystem";
+import type { PayrollSystemRow } from "~/types/payrollSystem";
 
 export function isPayrollSystemRow(row: unknown): row is PayrollSystemRow {
   return (

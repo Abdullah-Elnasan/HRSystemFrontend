@@ -4,6 +4,7 @@ import { apiFetch } from '../../utils/apiFetch'
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
+    console.log('login.post.ts')
 
     // Validate required fields
     if (!body.email || !body.password) {

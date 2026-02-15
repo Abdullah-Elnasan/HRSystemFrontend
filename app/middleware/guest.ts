@@ -3,6 +3,7 @@ import { useAuthStore } from '~/stores/auth/auth'
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const authStore = useAuthStore()
 
+  console.log('guest.ts')
   // Check if user is authenticated (async check to ensure state is loaded)
   // First check if user is already in store
   if (authStore.isAuthenticated) {

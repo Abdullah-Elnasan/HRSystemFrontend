@@ -1,5 +1,5 @@
 // ~/composables/work-schedule-assignments/useWorkScheduleAssignments.ts
-import { useWorkScheduleAssignmentsStore } from '~/stores/workScheduleAssignments/WorkScheduleAssignment'
+import { useWorkScheduleAssignmentsStore } from '~/stores/workScheduleAssignments/workScheduleAssignment'
 import type { WorkScheduleAssignmentForm } from '~/types/workScheduleAssignments'
 import { usePaginatedList } from '~/composables/usePaginatedList'
 

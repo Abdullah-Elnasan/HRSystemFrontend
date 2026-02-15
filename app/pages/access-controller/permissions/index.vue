@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { generateColumns } from "~/utils/generateColumns";
-import type { PayrollSystem, PayrollSystemForm } from "~/types/payrollSystem";
-import { emptyPayrollSystemForm } from "~/types/payrollSystem";
-import { isPayrollSystemRow } from "~/composables/payrollSystem2/isPayrollSystemRow";
-import { usePayrollSystems } from "~/composables/payrollSystem2/usePayrollSystems";
+import type {  Permission, PermissionForm } from "~/types/permission";
+import { emptyPermissionForm } from "~/types/permission";
+import { isPermissionRow } from "~/composables/permissions/isPermissionRow";
+import { usePermissions } from "~/composables/permissions/usePermissions";
 
 const UButton = resolveComponent("UButton");
 
 definePageMeta({
   layout: "dashboard",
-  title: "إدارة أنظمة الرواتب",
+  title: "إدارة الصلاحيات",
   keepalive: false,
 });
 
@@ -24,16 +24,16 @@ const {
   setPage,
   setPageSize,
   setSearch,
-  deletePayrollSystem,
-  createPayrollSystem,
-  updatePayrollSystem,
-} = usePayrollSystems();
+  deletePermission,
+  createPermission,
+  updatePermission,
+} = usePermissions();
 
 const open = ref(false);
 const titleDrower = ref("");
 
 /* ================== Computed ================== */
-const payrollSystems = computed<PayrollSystem[]>(() => data.value ?? []);
+const permissions = computed<Permission[]>(() => data.value ?? []);
 
 const safePagination = computed(() => ({
   total: pagination.value?.total ?? 0,
@@ -56,47 +56,41 @@ const meta = {
 };
 
 /* ================== Enhanced Data ================== */
-const enhancedPayrollSystems = computed(() =>
-  payrollSystems.value.map((system) => ({
-    ...system,
-    salary_type_label: system.salary_type === "monthly" ? "شهري" : "بالساعة",
-    status_label: system.is_active ? "نشط" : "غير نشط",
-    deduct_label: system.deduct_missing_time ? "نعم" : "لا",
+const enhancedPermissions = computed(() =>
+  permissions.value.map((permission) => ({
+    ...permission,
+    permission_group_name: permission.permission_group.name_ar,
   }))
 );
 
 /* ================== Columns ================== */
 const columns = computed(() =>
-  enhancedPayrollSystems.value.length
+  enhancedPermissions.value.length
     ? generateColumns<any>(
-        enhancedPayrollSystems.value,
+        enhancedPermissions.value,
         {
           labels: {
-            name: "الاسم",
-            salary_type_label: "نوع الراتب",
-            monthly_salary: "الراتب الشهري",
-            hourly_rate: "الأجر بالساعة",
-            overtime_base_rate: "معامل الوقت الإضافي",
-            deduct_label: "خصم الوقت المفقود",
-            status_label: "الحالة",
-            currency: "العملة",
+            code: "الكود",
+            name_ar: "الاسم (عربي)",
+            name_en: "الاسم (إنجليزي)",
+            description_ar: "الوصف (عربي)",
+            description_en: "الوصف (إنجليزي)",
+            permission_group_name: "مجموعة الصلاحيات",
             action: "العمليات",
           },
           exclude: [
-            "salary_type",
-            "deduct_missing_time",
-            "is_active",
+            "id",
+            "permission_group",
             "created_at",
             "updated_at",
           ],
           columns: {
-            name: { filterable: true },
-            salary_type_label: { filterable: true },
-            monthly_salary: { type: "number" },
-            hourly_rate: { type: "number" },
-            overtime_base_rate: { type: "number" },
-            status_label: { filterable: true },
-            currency: { filterable: true },
+            code: { filterable: true },
+            name_ar: { filterable: true },
+            name_en: { filterable: true },
+            description_ar: { hidden: true },
+            description_en: { hidden: true },
+            permission_group_name: { filterable: true },
             action: { hideable: false },
           },
         },
@@ -107,7 +101,7 @@ const columns = computed(() =>
 
 /* ================== Effects ================== */
 watch(
-  payrollSystems,
+  permissions,
   (val) => {
     if (val.length) firstLoad.value = false;
   },
@@ -124,39 +118,37 @@ const onColumnFiltersChange = (val: any[]) => (columnFilters.value = val);
 /* ================== Form Management ================== */
 const editingId = ref<number | null>(null);
 const mode = computed(() => (editingId.value ? "edit" : "create"));
-const formModel = reactive<PayrollSystemForm>(emptyPayrollSystemForm());
+const formModel = reactive<PermissionForm>(emptyPermissionForm());
 
 const openDrower = (payload: { title: string; row?: unknown }) => {
   (document.activeElement as HTMLElement)?.blur();
   open.value = !open.value;
   titleDrower.value = payload.title;
 
-  if (payload.row && isPayrollSystemRow(payload.row)) {
+  if (payload.row && isPermissionRow(payload.row)) {
     editingId.value = payload.row.id;
     Object.assign(formModel, {
-      name: payload.row.name,
-      salary_type: payload.row.salary_type,
-      monthly_salary: payload.row.monthly_salary,
-      hourly_rate: payload.row.hourly_rate,
-      overtime_base_rate: payload.row.overtime_base_rate,
-      deduct_missing_time: payload.row.deduct_missing_time,
-      is_active: payload.row.is_active,
-      currency: payload.row.currency,
+      code: payload.row.code,
+      name_ar: payload.row.name_ar,
+      name_en: payload.row.name_en,
+      description_ar: payload.row.description_ar || "",
+      description_en: payload.row.description_en || "",
+      permission_group_id: payload.row.permission_group.id,
     });
   } else {
     editingId.value = null;
-    Object.assign(formModel, emptyPayrollSystemForm());
+    Object.assign(formModel, emptyPermissionForm());
   }
 };
 
 const formRef = ref<{ submit: () => void } | null>(null);
 
-const onSubmit = async (value: PayrollSystemForm) => {
+const onSubmit = async (value: PermissionForm) => {
   try {
     if (editingId.value) {
-      await updatePayrollSystem(editingId.value, value);
+      await updatePermission(editingId.value, value);
     } else {
-      await createPayrollSystem(value);
+      await createPermission(value);
     }
     open.value = false;
   } catch (error) {
@@ -164,8 +156,8 @@ const onSubmit = async (value: PayrollSystemForm) => {
   }
 };
 
-const onDeletePayrollSystemHandler = async (id: number) => {
-  await deletePayrollSystem(id);
+const onDeletePermissionHandler = async (id: number) => {
+  await deletePermission(id);
 };
 </script>
 
@@ -181,7 +173,7 @@ const onDeletePayrollSystemHandler = async (id: number) => {
   <AppTable
     v-else
     :columns="columns"
-    :data="enhancedPayrollSystems"
+    :data="enhancedPermissions"
     :total="safePagination.total"
     :page="page"
     :page-sizes="pageSizes"
@@ -191,15 +183,15 @@ const onDeletePayrollSystemHandler = async (id: number) => {
     :sorting="sorting"
     :global-filter="search"
     :column-filters="columnFilters"
-    title-btn-create="إضافة نظام رواتب"
-    title-btn-icon="lucide:wallet"
-    title-btn-edit="تعديل نظام رواتب"
+    title-btn-create="إضافة صلاحية"
+    title-btn-icon="lucide:shield-plus"
+    title-btn-edit="تعديل صلاحية"
     @update:page="onPageChange"
     @update:page-size="onPageSizeChange"
     @update:sorting="onSortingChange"
     @update:global-filter="onSearchGlobal"
     @update:column-filters="onColumnFiltersChange"
-    @delete:row="onDeletePayrollSystemHandler"
+    @delete:row="onDeletePermissionHandler"
     @drower:open="openDrower"
     @update:data="openDrower"
   />
@@ -207,7 +199,7 @@ const onDeletePayrollSystemHandler = async (id: number) => {
   <ClientOnly>
     <UDrawer
       v-model:open="open"
-      :description="`إدارة أنظمة الرواتب`"
+      :description="`إدارة الصلاحيات`"
       direction="left"
       :title="titleDrower"
       :ui="{
@@ -237,7 +229,7 @@ const onDeletePayrollSystemHandler = async (id: number) => {
         </div>
 
         <ClientOnly>
-          <FormsPayrollSystemForm
+          <FormsPermissionForm
             ref="formRef"
             v-model="formModel"
             :mode="mode"

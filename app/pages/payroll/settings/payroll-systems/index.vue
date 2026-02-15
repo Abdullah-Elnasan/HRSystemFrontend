@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { generateColumns } from "~/utils/generateColumns";
-import type { PayrollSystem, PayrollSystemForm } from "~/types/PayrollSystem";
-import { emptyPayrollSystemForm } from "~/types/PayrollSystem";
+import type { PayrollSystem, PayrollSystemForm } from "~/types/payrollSystem";
+import { emptyPayrollSystemForm } from "~/types/payrollSystem";
 import { isPayrollSystemRow } from "~/composables/payrollSystem2/isPayrollSystemRow";
 import { usePayrollSystems } from "~/composables/payrollSystem2/usePayrollSystems";
 

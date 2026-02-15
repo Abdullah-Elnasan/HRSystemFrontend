@@ -8,6 +8,7 @@
  * Laravel Sanctum stores CSRF token in XSRF-TOKEN cookie
  */
 function getCsrfToken(): string | null {
+  console.log('apiClient getCsrfToken')
   if (import.meta.server) return null
   if (typeof document === 'undefined') return null
 
@@ -39,6 +40,8 @@ export async function apiClient<T>(
   } = {}
 ): Promise<T> {
   const config = useRuntimeConfig()
+
+  console.log('apiClient apiClient')
 
   // Build URL
   const url = endpoint.startsWith('http')

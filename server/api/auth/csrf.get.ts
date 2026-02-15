@@ -2,6 +2,7 @@ import { getCookie, setCookie } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {
+    console.log('csrf.get.ts')
     const config = useRuntimeConfig()
     const apiBase = config.public.apiBase
 

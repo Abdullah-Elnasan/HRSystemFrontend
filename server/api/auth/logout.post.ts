@@ -2,6 +2,8 @@ import { apiFetch } from '../../utils/apiFetch'
 
 export default defineEventHandler(async (event) => {
   try {
+    console.log('logout.post.ts')
+
     // Call Laravel logout endpoint
     const response = await apiFetch('/logout', {
       method: 'POST',

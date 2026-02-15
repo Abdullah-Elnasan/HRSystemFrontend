@@ -64,18 +64,18 @@ export default defineNuxtConfig({
   debug: true,
 
   // لا تضع baseURL إذا على دومين/ساب دومين مستقل
-  ssr: false,
-  app: { baseURL: '/' },
+  // ssr: false,
+  // app: { baseURL: '/' },
   // لا تضع ssr:false هنا
 
-  // routeRules: {
-  //   '/': { ssr: true },
-  //   '/app/**': { ssr: false },
-  //   '/login': { ssr: false }
-  //   // '/HRSystemFrontend/': { ssr: true },
-  //   // '/HRSystemFrontend/app/**': { ssr: false },
-  //   // '/HRSystemFrontend/login': { ssr: false }
-  // },
+  routeRules: {
+    '/': { ssr: true },
+    '/app/**': { ssr: false },
+    '/login': { ssr: false }
+    // '/HRSystemFrontend/': { ssr: true },
+    // '/HRSystemFrontend/app/**': { ssr: false },
+    // '/HRSystemFrontend/login': { ssr: false }
+  },
 
   runtimeConfig: {
     apiSecret: '123',

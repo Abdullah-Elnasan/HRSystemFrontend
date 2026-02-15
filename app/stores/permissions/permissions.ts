@@ -1,14 +1,14 @@
-// ~/stores/payroll-systems/payroll-systems.ts
+// ~/stores/permissions/permissions.ts
 import { defineStore } from "pinia";
-import type { PayrollSystem, PayrollSystemForm } from "~/types/payrollSystem";
+import type { Permission, PermissionForm } from "~/types/permission";
 import type { PaginatedResponse } from "~/types/table";
 import { fetchList } from "~/service/useAsyncData";
 import { createResource } from "~/service/createResource";
 import { updateResource } from "~/service/updateResource";
 
-export const usePayrollSystemsStore = defineStore("payrollSystems", {
+export const usePermissionsStore = defineStore("permissions", {
   state: () => ({
-    payrollSystems: [] as PayrollSystem[],
+    permissions: [] as Permission[],
     pagination: {
       current_page: 1,
       per_page: 10,
@@ -20,28 +20,28 @@ export const usePayrollSystemsStore = defineStore("payrollSystems", {
   }),
 
   getters: {
-    getPayrollSystems: (state) => state.payrollSystems,
-    getPayrollSystemById: (state) => (id: number | string) =>
-      state.payrollSystems.find((p) => p.id === id),
+    getPermissions: (state) => state.permissions,
+    getPermissionById: (state) => (id: number | string) =>
+      state.permissions.find((p) => p.id === id),
     isLoading: (state) => state.loading,
   },
 
   actions: {
-    /* ================== Fetch Payroll Systems (Paginated) ================== */
-    async fetchPayrollSystems(params?: Record<string, any>) {
+    /* ================== Fetch Permissions (Paginated) ================== */
+    async fetchPermissions(params?: Record<string, any>) {
       this.loading = true;
       this.error = null;
       const toast = useToast();
 
       try {
-        const response = await fetchList<PaginatedResponse<PayrollSystem>>({
-          endpoint: '/api/payroll-systems/payroll-systems',
+        const response = await fetchList<PaginatedResponse<Permission>>({
+          endpoint: '/api/permissions',
           page: params?.page ?? 1,
           perPage: params?.per_page ?? 10,
           search: params?.filter?.search,
         });
 
-        this.payrollSystems = response.data;
+        this.permissions = response.data;
         this.pagination = response.pagination;
 
         if ((response as any).messageAr) {
@@ -57,26 +57,26 @@ export const usePayrollSystemsStore = defineStore("payrollSystems", {
       }
     },
 
-    /* ================== Fetch Single Payroll System ================== */
-    async fetchPayrollSystemById(id: number | string) {
+    /* ================== Fetch Single Permission ================== */
+    async fetchPermissionById(id: number | string) {
       this.loading = true;
       this.error = null;
       const toast = useToast();
 
       try {
-        const response = await fetchList<{ data: PayrollSystem }>({
-          endpoint: `/api/payroll-systems/${id}`,
+        const response = await fetchList<{ data: Permission }>({
+          endpoint: `/api/permissions/${id}`,
         });
 
-        const payrollSystem = response.data;
-        const index = this.payrollSystems.findIndex((p) => p.id === payrollSystem.id);
-        if (index !== -1) this.payrollSystems[index] = payrollSystem;
+        const permission = response.data;
+        const index = this.permissions.findIndex((p) => p.id === permission.id);
+        if (index !== -1) this.permissions[index] = permission;
 
         if ((response as any).messageAr) {
           toast.add({ title: (response as any).messageAr, color: 'success' });
         }
 
-        return payrollSystem;
+        return permission;
       } catch (err: any) {
         handleApiError(err, toast);
         throw err;
@@ -85,19 +85,19 @@ export const usePayrollSystemsStore = defineStore("payrollSystems", {
       }
     },
 
-    /* ================== Create Payroll System ================== */
-    async createPayrollSystem(payload: PayrollSystemForm | FormData) {
+    /* ================== Create Permission ================== */
+    async createPermission(payload: PermissionForm | FormData) {
       this.loading = true;
       this.error = null;
       const toast = useToast();
 
       try {
-        return await createResource<PayrollSystem>({
-          endpoint: '/api/payroll-systems/payroll-systems',
+        return await createResource<Permission>({
+          endpoint: '/api/permissions',
           payload,
           toast: useToast(),
           onSuccess: (data) => {
-            this.payrollSystems.unshift(data);
+            this.permissions.unshift(data);
             this.pagination.total += 1;
           },
         });
@@ -109,20 +109,20 @@ export const usePayrollSystemsStore = defineStore("payrollSystems", {
       }
     },
 
-    /* ================== Update Payroll System ================== */
-    async updatePayrollSystem(id: number, payload: Partial<PayrollSystemForm> | FormData) {
+    /* ================== Update Permission ================== */
+    async updatePermission(id: number, payload: Partial<PermissionForm> | FormData) {
       this.loading = true;
       this.error = null;
       const toast = useToast();
 
       try {
-        return await updateResource<PayrollSystem>({
-          endpoint: `/api/payroll-systems/${id}`,
+        return await updateResource<Permission>({
+          endpoint: `/api/permissions/${id}`,
           payload,
           toast: useToast(),
           onSuccess: (data) => {
-            const index = this.payrollSystems.findIndex((p) => p.id === data.id);
-            if (index !== -1) this.payrollSystems[index] = data;
+            const index = this.permissions.findIndex((p) => p.id === data.id);
+            if (index !== -1) this.permissions[index] = data;
           },
         });
       } catch (err: any) {
@@ -133,28 +133,28 @@ export const usePayrollSystemsStore = defineStore("payrollSystems", {
       }
     },
 
-    /* ================== Delete Payroll System ================== */
-    async deletePayrollSystem(id: number) {
+    /* ================== Delete Permission ================== */
+    async deletePermission(id: number) {
       this.loading = true;
       this.error = null;
       const toast = useToast();
 
-      const index = this.payrollSystems.findIndex((p) => p.id === id);
-      const backup = index !== -1 ? this.payrollSystems[index] : null;
+      const index = this.permissions.findIndex((p) => p.id === id);
+      const backup = index !== -1 ? this.permissions[index] : null;
 
       try {
         if (index !== -1) {
-          this.payrollSystems.splice(index, 1);
+          this.permissions.splice(index, 1);
           this.pagination.total -= 1;
         }
 
-        await $fetch(`/api/payroll-systems/${id}`, { method: 'DELETE' });
+        await $fetch(`/api/permissions/${id}`, { method: 'DELETE' });
 
-        toast.add({ title: 'تم حذف نظام الرواتب بنجاح', color: 'success' });
+        toast.add({ title: 'تم حذف الصلاحية بنجاح', color: 'success' });
         return true;
       } catch (err: any) {
         if (backup && index !== -1) {
-          this.payrollSystems.splice(index, 0, backup);
+          this.permissions.splice(index, 0, backup);
           this.pagination.total += 1;
         }
 
@@ -166,20 +166,20 @@ export const usePayrollSystemsStore = defineStore("payrollSystems", {
     },
 
     /* ================== Local State Management ================== */
-    setPayrollSystems(payload: PaginatedResponse<PayrollSystem>) {
-      this.payrollSystems = payload.data;
+    setPermissions(payload: PaginatedResponse<Permission>) {
+      this.permissions = payload.data;
       this.pagination = payload.pagination;
     },
 
-    addPayrollSystem(payrollSystem: PayrollSystem) {
-      this.payrollSystems.unshift(payrollSystem);
+    addPermission(permission: Permission) {
+      this.permissions.unshift(permission);
       this.pagination.total += 1;
     },
 
-    removePayrollSystem(id: number | string) {
-      const index = this.payrollSystems.findIndex((p) => p.id === id);
+    removePermission(id: number | string) {
+      const index = this.permissions.findIndex((p) => p.id === id);
       if (index !== -1) {
-        this.payrollSystems.splice(index, 1);
+        this.permissions.splice(index, 1);
         this.pagination.total -= 1;
       }
     },

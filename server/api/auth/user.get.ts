@@ -2,6 +2,8 @@ import { apiFetch } from '../../utils/apiFetch'
 
 export default defineEventHandler(async (event) => {
   try {
+    console.log('user.get.ts')
+
     // Call Laravel authenticated user endpoint
     const response = await apiFetch('/auth/me', {
       method: 'GET',

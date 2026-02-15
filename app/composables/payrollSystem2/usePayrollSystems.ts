@@ -1,6 +1,6 @@
 // ~/composables/payroll-systems/usePayrollSystems.ts
-import { usePayrollSystemsStore } from '~/stores/payrollSystem3/PayrollSystem'
-import type { PayrollSystemForm } from '~/types/PayrollSystem'
+import { usePayrollSystemsStore } from '~/stores/payrollSystem3/payrollSystem'
+import type { PayrollSystemForm } from '~/types/payrollSystem'
 import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function usePayrollSystems() {

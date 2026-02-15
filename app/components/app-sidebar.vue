@@ -1,8 +1,17 @@
 <template>
-  <UDashboardSidebar collapsible :ui="{
-    footer: 'border-b border-default',
-    root: ' max-w-64 border-2 border-default',
-  }" :min-size="22" :default-size="35" :max-size="40" mode="modal" toggleSide="right" side="left">
+  <UDashboardSidebar
+    collapsible
+    :ui="{
+      footer: 'border-b border-default',
+      root: ' max-w-64 border-2 border-default',
+    }"
+    :min-size="22"
+    :default-size="35"
+    :max-size="40"
+    mode="modal"
+    toggleSide="right"
+    side="left"
+  >
     <!-- زر السحب -->
     <!-- <template #resize-handle="{ onMouseDown, ui }">
       <div :class="ui" @mousedown="handleResize(onMouseDown, $event)" />
@@ -17,9 +26,18 @@
     <template #default="{ collapsed }">
       <UDashboardSearchButton :collapsed="collapsed" />
 
-      <UNavigationMenu :collapsed="collapsed" :items="items[0]" orientation="vertical" />
+      <UNavigationMenu
+        :collapsed="collapsed"
+        :items="items[0]"
+        orientation="vertical"
+      />
 
-      <UNavigationMenu :collapsed="collapsed" :items="items[1]" orientation="vertical" class="mt-auto" />
+      <UNavigationMenu
+        :collapsed="collapsed"
+        :items="items[1]"
+        orientation="vertical"
+        class="mt-auto"
+      />
     </template>
 
     <!-- الفوتر -->
@@ -27,7 +45,7 @@
       <UButton
         :avatar="{
           src: userAvatar,
-          alt: userName || 'User'
+          alt: userName || 'User',
         }"
         :label="collapsed ? undefined : userName"
         color="neutral"
@@ -58,45 +76,49 @@ console.log(authStore.user);
 
 // Computed properties for user name and avatar
 const userName = computed(() => {
-  return authStore.user?.name || 'المستخدم'
-})
+  return authStore.user?.name || "المستخدم";
+});
 
 const userAvatar = computed(() => {
-  const config = useRuntimeConfig()
-  const apiBase = config.public.apiBase || ''
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "";
 
   // Check if user has image property
   if (authStore.user?.employee?.image) {
-    const imageUrl = authStore.user.employee?.image
+    const imageUrl = authStore.user.employee?.image;
     // If image is a relative path, prepend API base URL
-    if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-      return `${apiBase}/${imageUrl}`
+    if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
+      return `${apiBase}/${imageUrl}`;
     }
     // If image starts with /, it's already a full path
-    if (imageUrl && imageUrl.startsWith('/')) {
-      return `${apiBase}${imageUrl}`
+    if (imageUrl && imageUrl.startsWith("/")) {
+      return `${apiBase}${imageUrl}`;
     }
-    return imageUrl
+    return imageUrl;
   }
   // Check if user has avatar property
   console.log(authStore.user);
   if (authStore.user?.employee && authStore.user.employee?.image) {
-    const avatarUrl = authStore.user.employee?.image
-    console.log('avatarUrl');
+    const avatarUrl = authStore.user.employee?.image;
+    console.log("avatarUrl");
     console.log(avatarUrl);
     // If avatar is a relative path, prepend API base URL
-    if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('/')) {
-      return `${apiBase}/${avatarUrl}`
+    if (
+      avatarUrl &&
+      !avatarUrl.startsWith("http") &&
+      !avatarUrl.startsWith("/")
+    ) {
+      return `${apiBase}/${avatarUrl}`;
     }
     // If avatar starts with /, it's already a full path
-    if (avatarUrl && avatarUrl.startsWith('/')) {
-      return `${apiBase}${avatarUrl}`
+    if (avatarUrl && avatarUrl.startsWith("/")) {
+      return `${apiBase}${avatarUrl}`;
     }
-    return avatarUrl
+    return avatarUrl;
   }
   // Default avatar or placeholder
-  return 'https://github.com/benjamincanac.png'
-})
+  return "https://github.com/benjamincanac.png";
+});
 
 // const { wrapMouseDown } = useRtlResize();
 
@@ -138,13 +160,23 @@ const items = computed<NavigationMenuItem[][]>(() => [
         },
       ],
     },
-
     {
-      label: "إدارة مجموعات المستخدمين",
-      icon: "streamline-flex:user-collaborate-group-solid",
-      to: "/user-groups",
-    },
-
+      label: "إدارة الوصول",
+      icon: "lucide:folder-tree",
+      defaultOpen: false,
+          children: [
+            {
+              label: "إدارة مجموعات المستخدمين",
+              icon: "streamline-flex:user-collaborate-group-solid",
+              to: "/user-groups",
+            },
+            {
+              label: "الصلاحيات",
+              icon: "lucide:link",
+              to: "/access-controller/permissions",
+            },
+          ],
+        },
     {
       label: "الحضور والانصراف",
       icon: "lucide:folder-tree",
