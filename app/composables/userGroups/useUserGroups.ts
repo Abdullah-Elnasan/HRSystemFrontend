@@ -1,5 +1,5 @@
 import { useUserGroupStore } from '~/stores/userGroups/userGroups'
-import type { UserGroupForm } from '~/types/userGroups'
+import type { UserGroupForm, PermissionAssignForm } from '~/types/userGroups'
 import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function useUserGroup() {
@@ -16,7 +16,11 @@ export function useUserGroup() {
     try {
       await store.fetchUserGroups(params)
     } catch (err: any) {
-      toast.add({ title: 'خطأ', description: store.error ?? 'فشل في جلب المجموعات', color: 'error' })
+      toast.add({
+        title: 'خطأ',
+        description: store.error ?? 'فشل في جلب المجموعات',
+        color: 'error'
+      })
     }
   }
 
@@ -24,7 +28,11 @@ export function useUserGroup() {
     try {
       return await store.fetchUserGroupById(id)
     } catch (err: any) {
-      toast.add({ title: 'خطأ', description: store.error ?? 'فشل في جلب المجموعة', color: 'error' })
+      toast.add({
+        title: 'خطأ',
+        description: store.error ?? 'فشل في جلب المجموعة',
+        color: 'error'
+      })
       throw err
     }
   }
@@ -33,7 +41,11 @@ export function useUserGroup() {
     try {
       return await store.createUserGroup(payload)
     } catch (err: any) {
-      toast.add({ title: 'خطأ', description: store.error ?? 'فشل في إنشاء المجموعة', color: 'error' })
+      toast.add({
+        title: 'خطأ',
+        description: store.error ?? 'فشل في إنشاء المجموعة',
+        color: 'error'
+      })
       throw err
     }
   }
@@ -42,7 +54,11 @@ export function useUserGroup() {
     try {
       return await store.updateUserGroup(id, payload)
     } catch (err: any) {
-      toast.add({ title: 'خطأ', description: store.error ?? 'فشل في تعديل المجموعة', color: 'error' })
+      toast.add({
+        title: 'خطأ',
+        description: store.error ?? 'فشل في تعديل المجموعة',
+        color: 'error'
+      })
       throw err
     }
   }
@@ -51,7 +67,37 @@ export function useUserGroup() {
     try {
       await store.deleteUserGroup(id)
     } catch (err: any) {
-      toast.add({ title: 'خطأ', description: store.error ?? 'فشل في حذف المجموعة', color: 'error' })
+      toast.add({
+        title: 'خطأ',
+        description: store.error ?? 'فشل في حذف المجموعة',
+        color: 'error'
+      })
+      throw err
+    }
+  }
+
+  async function assignPermissions(payload: PermissionAssignForm) {
+    try {
+      return await store.assignPermissions(payload)
+    } catch (err: any) {
+      toast.add({
+        title: 'خطأ',
+        description: store.error ?? 'فشل في إسناد الصلاحيات',
+        color: 'error'
+      })
+      throw err
+    }
+  }
+
+  async function removePermissions(payload: PermissionAssignForm) {
+    try {
+      return await store.removePermissions(payload)
+    } catch (err: any) {
+      toast.add({
+        title: 'خطأ',
+        description: store.error ?? 'فشل في حذف الصلاحيات',
+        color: 'error'
+      })
       throw err
     }
   }
@@ -67,6 +113,8 @@ export function useUserGroup() {
     createUserGroup,
     updateUserGroup,
     deleteUserGroup,
+    assignPermissions,
+    removePermissions,
     clearError: store.clearError,
   }
 }

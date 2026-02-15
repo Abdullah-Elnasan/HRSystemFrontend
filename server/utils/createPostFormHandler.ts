@@ -4,6 +4,7 @@ import { apiFetch } from './apiFetch'
 export function createPostFormHandler(endpoint: string) {
   return defineEventHandler(async (event) => {
     const formData = await readFormData(event)
+    console.log(formData)
 
     try {
       return await apiFetch(endpoint, {

@@ -130,6 +130,7 @@ export async function apiFetch<T>(
   // ---------- Query params ----------
   const params = new URLSearchParams()
 
+  console.log('dsffffffffffffffff')
   if (options.query) {
     for (const key in options.query) {
       const value = options.query[key]
@@ -149,7 +150,7 @@ export async function apiFetch<T>(
     ? `${config.public.apiBase}/api${endpoint}?${params}`
     : `${config.public.apiBase}/api${endpoint}`
 
-    console.log("API Fetch URL:", url);
+  console.log("API Fetch URL:", url);
   // ---------- FormData handling ----------
   const isFormData = options.body instanceof FormData
   let method = options.method ?? 'GET'
@@ -165,9 +166,9 @@ export async function apiFetch<T>(
   try {
     // Determine if this is an auth endpoint (should use credentials instead of Bearer token)
     const isAuthEndpoint = endpoint.includes('/login') ||
-                          endpoint.includes('/logout') ||
-                          endpoint.includes('/api/user') ||
-                          endpoint.includes('/sanctum/csrf-cookie')
+      endpoint.includes('/logout') ||
+      endpoint.includes('/api/user') ||
+      endpoint.includes('/sanctum/csrf-cookie')
 
     const headers: Record<string, string> = {
       Accept: 'application/json',
@@ -188,9 +189,13 @@ export async function apiFetch<T>(
       credentials: isAuthEndpoint ? 'include' : undefined,
       timeout: 10_000,
     })
+    // console.log('res')
+    // console.log(res)
     return res
   } catch (error: any) {
 
+    // console.log('error')
+    // console.log(error?.response?._data)
     throw createError({
       statusCode: error?.response?.status ?? 500,
       statusMessage:

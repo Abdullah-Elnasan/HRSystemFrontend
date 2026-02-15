@@ -3,8 +3,6 @@ import { defineStore } from "pinia";
 import type { Permission, PermissionForm } from "~/types/permission";
 import type { PaginatedResponse } from "~/types/table";
 import { fetchList } from "~/service/useAsyncData";
-import { createResource } from "~/service/createResource";
-import { updateResource } from "~/service/updateResource";
 
 export const usePermissionsStore = defineStore("permissions", {
   state: () => ({
@@ -35,7 +33,7 @@ export const usePermissionsStore = defineStore("permissions", {
 
       try {
         const response = await fetchList<PaginatedResponse<Permission>>({
-          endpoint: '/api/permissions',
+          endpoint: '/api/permissions/permissions',
           page: params?.page ?? 1,
           perPage: params?.per_page ?? 10,
           search: params?.filter?.search,
@@ -85,104 +83,12 @@ export const usePermissionsStore = defineStore("permissions", {
       }
     },
 
-    /* ================== Create Permission ================== */
-    async createPermission(payload: PermissionForm | FormData) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
-
-      try {
-        return await createResource<Permission>({
-          endpoint: '/api/permissions',
-          payload,
-          toast: useToast(),
-          onSuccess: (data) => {
-            this.permissions.unshift(data);
-            this.pagination.total += 1;
-          },
-        });
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    /* ================== Update Permission ================== */
-    async updatePermission(id: number, payload: Partial<PermissionForm> | FormData) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
-
-      try {
-        return await updateResource<Permission>({
-          endpoint: `/api/permissions/${id}`,
-          payload,
-          toast: useToast(),
-          onSuccess: (data) => {
-            const index = this.permissions.findIndex((p) => p.id === data.id);
-            if (index !== -1) this.permissions[index] = data;
-          },
-        });
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    /* ================== Delete Permission ================== */
-    async deletePermission(id: number) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
-
-      const index = this.permissions.findIndex((p) => p.id === id);
-      const backup = index !== -1 ? this.permissions[index] : null;
-
-      try {
-        if (index !== -1) {
-          this.permissions.splice(index, 1);
-          this.pagination.total -= 1;
-        }
-
-        await $fetch(`/api/permissions/${id}`, { method: 'DELETE' });
-
-        toast.add({ title: 'تم حذف الصلاحية بنجاح', color: 'success' });
-        return true;
-      } catch (err: any) {
-        if (backup && index !== -1) {
-          this.permissions.splice(index, 0, backup);
-          this.pagination.total += 1;
-        }
-
-        handleApiError(err, toast);
-        throw err;
-      } finally {
-        this.loading = false;
-      }
-    },
-
     /* ================== Local State Management ================== */
     setPermissions(payload: PaginatedResponse<Permission>) {
       this.permissions = payload.data;
       this.pagination = payload.pagination;
     },
 
-    addPermission(permission: Permission) {
-      this.permissions.unshift(permission);
-      this.pagination.total += 1;
-    },
-
-    removePermission(id: number | string) {
-      const index = this.permissions.findIndex((p) => p.id === id);
-      if (index !== -1) {
-        this.permissions.splice(index, 1);
-        this.pagination.total -= 1;
-      }
-    },
 
     clearError() {
       this.error = null;

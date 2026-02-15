@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
-import type { UserGroup, UserGroupForm } from '~/types/userGroups'
+import type { UserGroup, UserGroupForm, PermissionAssignForm } from '~/types/userGroups'
 import type { PaginatedResponse } from '~/types/table'
 import { fetchList } from '~/service/useAsyncData'
 import { createResource } from '~/service/createResource'
 import { updateResource } from '~/service/updateResource'
+import { assignResource, removeResource } from '~/service/assignResource'
 
 // function getErrorMessage(err: any): string {
 //   if (err?.data?.errors && typeof err.data.errors === 'object') {
@@ -97,7 +98,7 @@ export const useUserGroupStore = defineStore('userGroups', {
     async createUserGroup(payload: UserGroupForm | FormData) {
       this.loading = true
       this.error = null
-const toast = useToast()
+      const toast = useToast()
       try {
         return await createResource<UserGroup>({
           endpoint: '/api/user-groups/user-groups',
@@ -121,7 +122,7 @@ const toast = useToast()
     async updateUserGroup(id: number, payload: Partial<UserGroupForm> | FormData) {
       this.loading = true
       this.error = null
-const toast = useToast()
+      const toast = useToast()
       try {
         return await updateResource<UserGroup>({
           endpoint: `/api/user-groups/${id}`,
@@ -185,6 +186,53 @@ const toast = useToast()
     addUserGroup(group: UserGroup) {
       this.userGroups.unshift(group)
       this.pagination.total += 1
+    },
+
+
+    /* ================== Assign Permissions ================== */
+    async assignPermissions(payload: PermissionAssignForm) {
+      this.loading = true
+      this.error = null
+      const toast = useToast()
+
+      try {
+        return await assignResource<any>({
+          endpoint: '/api/user-groups/assign',
+          payload,
+          toast,
+          successMessage: 'تم إسناد الصلاحيات بنجاح',
+          onSuccess: () => {
+          },
+        })
+      } catch (err: any) {
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    /* ================== Remove Permissions ================== */
+    async removePermissions(payload: PermissionAssignForm) {
+      this.loading = true
+      this.error = null
+      const toast = useToast()
+
+      try {
+        return await removeResource<any>({
+          endpoint: '/api/user-groups/remove',
+          payload,
+          toast,
+          successMessage: 'تم حذف الصلاحيات بنجاح',
+          onSuccess: () => {
+            // يمكنك تحديث البيانات هنا إذا لزم الأمر
+          },
+        })
+      } catch (err: any) {
+        // handleApiError(err, toast)
+        throw err
+      } finally {
+        this.loading = false
+      }
     },
 
     removeUserGroup(id: number | string) {

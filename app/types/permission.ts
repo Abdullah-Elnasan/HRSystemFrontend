@@ -1,6 +1,36 @@
 // ~/types/permission.ts
 import type { PaginationMeta } from "./table";
 
+
+// export interface Permission {
+//   id: number;
+//   code: string;
+//   name_ar: string;
+//   name_en: string;
+//   description_ar?: string;
+//   description_en?: string;
+//   group: {
+//     id: number;
+//     name_ar: string;
+//     name_en: string;
+//   };
+//   created_at?: string;
+//   updated_at?: string;
+// }
+
+// export interface PermissionForm {
+//   code: string;
+//   name_ar: string;
+//   name_en: string;
+//   description_ar?: string;
+//   description_en?: string;
+//   permission_group_id: number;
+// }
+
+export interface PermissionAssignForm {
+  user_group_id: number;
+  permission_ids: number[];
+}
 /**
  * Permission Group (nested)
  */
@@ -20,7 +50,7 @@ export type Permission = {
   name_en: string;
   description_ar: string | null;
   description_en: string | null;
-  permission_group: PermissionGroupNested;
+  group: PermissionGroupNested;
   created_at: string;
   updated_at: string;
   action: string;
@@ -72,5 +102,5 @@ export type PermissionRow = Pick<
   | "name_en"
   | "description_ar"
   | "description_en"
-  | "permission_group"
+  | "group"
 >;

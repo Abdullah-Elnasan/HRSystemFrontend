@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { generateColumns } from "~/utils/generateColumns";
-import type {  Permission, PermissionForm } from "~/types/permission";
-import { emptyPermissionForm } from "~/types/permission";
-import { isPermissionRow } from "~/composables/permissions/isPermissionRow";
+import type { Permission, PermissionForm } from "~/types/permission";
 import { usePermissions } from "~/composables/permissions/usePermissions";
+import { header, modal } from "#build/ui";
 
 const UButton = resolveComponent("UButton");
 
@@ -24,14 +23,12 @@ const {
   setPage,
   setPageSize,
   setSearch,
-  deletePermission,
-  createPermission,
-  updatePermission,
 } = usePermissions();
 
-const open = ref(false);
-const titleDrower = ref("");
-
+const assignDialogOpen = ref(false);
+const selectedPermissions = ref<number[]>([]);
+const toast = useToast();
+const currentOperation = ref("assign");
 /* ================== Computed ================== */
 const permissions = computed<Permission[]>(() => data.value ?? []);
 
@@ -59,45 +56,67 @@ const meta = {
 const enhancedPermissions = computed(() =>
   permissions.value.map((permission) => ({
     ...permission,
-    permission_group_name: permission.permission_group.name_ar,
-  }))
+    permission_group_name: permission.group.name_ar,
+  })),
 );
 
 /* ================== Columns ================== */
-const columns = computed(() =>
-  enhancedPermissions.value.length
+const columns = computed(() => {
+  const baseColumns = enhancedPermissions.value.length
     ? generateColumns<any>(
-        enhancedPermissions.value,
-        {
-          labels: {
-            code: "الكود",
-            name_ar: "الاسم (عربي)",
-            name_en: "الاسم (إنجليزي)",
-            description_ar: "الوصف (عربي)",
-            description_en: "الوصف (إنجليزي)",
-            permission_group_name: "مجموعة الصلاحيات",
-            action: "العمليات",
-          },
-          exclude: [
-            "id",
-            "permission_group",
-            "created_at",
-            "updated_at",
-          ],
-          columns: {
-            code: { filterable: true },
-            name_ar: { filterable: true },
-            name_en: { filterable: true },
-            description_ar: { hidden: true },
-            description_en: { hidden: true },
-            permission_group_name: { filterable: true },
-            action: { hideable: false },
-          },
+      enhancedPermissions.value,
+      {
+        labels: {
+          code: "الكود",
+          name_ar: "الاسم (عربي)",
+          name_en: "الاسم (إنجليزي)",
+          description_ar: "الوصف (عربي)",
+          description_en: "الوصف (إنجليزي)",
+          permission_group_name: "مجموعة الصلاحيات",
         },
-        UButton
-      )
-    : []
-);
+        exclude: ["group", "created_at", "action", "updated_at"],
+        columns: {
+          code: { filterable: true },
+          name_ar: { filterable: true },
+          name_en: { filterable: true },
+          description_ar: { hidden: true },
+          description_en: { hidden: true },
+          permission_group_name: { filterable: true },
+          action: { hideable: false },
+        },
+      },
+      UButton,
+    )
+    : [];
+
+  return [
+    {
+      accessorKey: "select",
+      header: "",
+      cell: ({ row }: any) => {
+        return h("input", {
+          type: "checkbox",
+          checked: selectedPermissions.value.includes(row.original.id),
+          onChange: (e: Event) => {
+            const target = e.target as HTMLInputElement;
+            if (target.checked) {
+              selectedPermissions.value.push(row.original.id);
+            } else {
+              selectedPermissions.value = selectedPermissions.value.filter(
+                (id) => id !== row.original.id,
+              );
+            }
+          },
+          class: "w-4 h-4 cursor-pointer",
+        });
+      },
+      enableHiding: false,
+      enableSorting: false,
+      size: 50,
+    },
+    ...baseColumns,
+  ];
+});
 
 /* ================== Effects ================== */
 watch(
@@ -105,7 +124,7 @@ watch(
   (val) => {
     if (val.length) firstLoad.value = false;
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 /* ================== Handlers ================== */
@@ -115,152 +134,117 @@ const onSearchGlobal = (val: string) => setSearch(val);
 const onSortingChange = (val: any[]) => (sorting.value = val);
 const onColumnFiltersChange = (val: any[]) => (columnFilters.value = val);
 
-/* ================== Form Management ================== */
-const editingId = ref<number | null>(null);
-const mode = computed(() => (editingId.value ? "edit" : "create"));
-const formModel = reactive<PermissionForm>(emptyPermissionForm());
-
-const openDrower = (payload: { title: string; row?: unknown }) => {
-  (document.activeElement as HTMLElement)?.blur();
-  open.value = !open.value;
-  titleDrower.value = payload.title;
-
-  if (payload.row && isPermissionRow(payload.row)) {
-    editingId.value = payload.row.id;
-    Object.assign(formModel, {
-      code: payload.row.code,
-      name_ar: payload.row.name_ar,
-      name_en: payload.row.name_en,
-      description_ar: payload.row.description_ar || "",
-      description_en: payload.row.description_en || "",
-      permission_group_id: payload.row.permission_group.id,
+/* ================== إسناد الصلاحيات ================== */
+const openAssignDialog = () => {
+  // التحقق من اختيار صلاحيات
+  if (selectedPermissions.value.length === 0) {
+    toast.add({
+      title: "تنبيه",
+      description: "يرجى اختيار صلاحية واحدة على الأقل",
+      color: "warning",
     });
+    return;
+  }
+  // فتح الـ Dialog
+  assignDialogOpen.value = true;
+};
+
+const closeAssignDialog = () => {
+  assignDialogOpen.value = false;
+};
+
+const handleAssignComplete = () => {
+  selectedPermissions.value = [];
+};
+
+const selectAll = () => {
+  if (selectedPermissions.value.length === enhancedPermissions.value.length) {
+    selectedPermissions.value = [];
   } else {
-    editingId.value = null;
-    Object.assign(formModel, emptyPermissionForm());
+    selectedPermissions.value = enhancedPermissions.value.map((p) => p.id);
   }
 };
 
-const formRef = ref<{ submit: () => void } | null>(null);
-
-const onSubmit = async (value: PermissionForm) => {
-  try {
-    if (editingId.value) {
-      await updatePermission(editingId.value, value);
-    } else {
-      await createPermission(value);
-    }
-    open.value = false;
-  } catch (error) {
-    console.error("Submit error:", error);
-  }
-};
-
-const onDeletePermissionHandler = async (id: number) => {
-  await deletePermission(id);
-};
+const isAllSelected = computed(
+  () =>
+    enhancedPermissions.value.length > 0 &&
+    selectedPermissions.value.length === enhancedPermissions.value.length,
+);
 </script>
 
 <template>
-  <!-- Loading أول تحميل فقط -->
-  <div
-    v-if="firstLoad && pending"
-    class="flex justify-center items-center py-20"
-  >
+  <div v-if="firstLoad && pending" class="flex justify-center items-center py-20">
     <span class="text-muted text-lg">جارٍ التحميل...</span>
   </div>
 
-  <AppTable
-    v-else
-    :columns="columns"
-    :data="enhancedPermissions"
-    :total="safePagination.total"
-    :page="page"
-    :page-sizes="pageSizes"
-    :page-size="pageSize"
-    :loading="pending"
-    :meta="meta"
-    :sorting="sorting"
-    :global-filter="search"
-    :column-filters="columnFilters"
-    title-btn-create="إضافة صلاحية"
-    title-btn-icon="lucide:shield-plus"
-    title-btn-edit="تعديل صلاحية"
-    @update:page="onPageChange"
-    @update:page-size="onPageSizeChange"
-    @update:sorting="onSortingChange"
-    @update:global-filter="onSearchGlobal"
-    @update:column-filters="onColumnFiltersChange"
-    @delete:row="onDeletePermissionHandler"
-    @drower:open="openDrower"
-    @update:data="openDrower"
-  />
+  <div v-else class="space-y-4">
+    <div class="flex items-center justify-between gap-4" dir="rtl">
+      <div class="flex items-center gap-2">
+        <UModal :ui="{
+          header: 'rtl',
+        }" v-model:open="assignDialogOpen" title="إسناد الصلاحيات"
+          :description="`تم تحديد ${selectedPermissions.length} صلاحية`" icon="i-lucide-user-plus" :close="{
+            color: 'primary',
+            variant: 'outline',
+            class: 'rounded-full',
+          }">
+          <UButton v-if="selectedPermissions.length > 0" color="primary" icon="i-lucide-user-plus"
+            @click="openAssignDialog">
+            إسناد الصلاحيات ({{ selectedPermissions.length }})
+          </UButton>
 
-  <ClientOnly>
-    <UDrawer
-      v-model:open="open"
-      :description="`إدارة الصلاحيات`"
-      direction="left"
-      :title="titleDrower"
-      :ui="{
-        body: 'drower space-y-5 pt-0',
-        header: 'hidden',
-        title: 'text-primary',
-        container: 'px-4 gap-y-10 drower',
-        overlay: 'bg-green-400/30',
-        content:
-          'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
-      }"
-    >
-      <template #body>
-        <div class="flex items-center justify-end gap-2">
-          <h2 class="text-highlighted font-semibold">{{ titleDrower }}</h2>
+          <!-- <template #header>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <UIcon name="i-lucide-user-plus" class="w-6 h-6" :class="currentOperation === 'assign'
+                    ? 'text-primary'
+                    : 'text-error'
+                  " />
+                <div>
+                  <h3 class="text-lg font-semibold">إسناد الصلاحيات</h3>
+                  <p class="text-sm text-muted">
+                    تم تحديد {{ selectedPermissions.length }} صلاحية
+                  </p>
+                </div>
+              </div>
+              <UButton variant="ghost" icon="i-lucide-x" @click="closeAssignDialog" />
+            </div>
+          </template> -->
 
-          <UIcon
-            v-if="editingId"
-            name="solar:pen-new-round-linear"
-            class="size-5"
-          />
-          <UIcon
-            v-else
-            name="ic:baseline-control-point-duplicate"
-            class="size-5"
-          />
-        </div>
+          <template #body>
+            <FormsAccessControllerPermissionsassigndialog :permission-ids="selectedPermissions"
+              @update:open="closeAssignDialog" @update:operation="currentOperation = $event"
+              @success="handleAssignComplete" />
+          </template>
+        </UModal>
 
-        <ClientOnly>
-          <FormsPermissionForm
-            ref="formRef"
-            v-model="formModel"
-            :mode="mode"
-            @submit="onSubmit"
-            class="min-w-150 items-start"
-          />
-        </ClientOnly>
-      </template>
+        <UButton v-if="enhancedPermissions.length > 0" variant="outline" :icon="isAllSelected ? 'i-lucide-square-check' : 'i-lucide-square-dashed'
+          " @click="selectAll">
+          {{ isAllSelected ? "إلغاء الكل" : "تحديد الكل" }}
+        </UButton>
+      </div>
 
-      <template #footer>
-        <UButton
-          label="إرسال"
-          color="neutral"
-          class="justify-center"
-          @click="formRef?.submit()"
-        />
+      <div v-if="selectedPermissions.length > 0" class="text-sm text-muted">
+        تم تحديد {{ selectedPermissions.length }} من
+        {{ enhancedPermissions.length }} صلاحية
+      </div>
+    </div>
 
-        <UButton
-          label="إغلاق"
-          color="neutral"
-          variant="outline"
-          class="justify-center"
-          @click="open = false"
-        />
-      </template>
-    </UDrawer>
-  </ClientOnly>
+    <AppTable :columns="columns" :data="enhancedPermissions" :total="safePagination.total" :page="page"
+      :page-sizes="pageSizes" :page-size="pageSize" :loading="pending" :meta="meta" :sorting="sorting"
+      :global-filter="search" :column-filters="columnFilters" title-btn-create="إضافة صلاحية"
+      title-btn-icon="lucide:shield-plus" title-btn-edit="تعديل صلاحية" @update:page="onPageChange"
+      @update:page-size="onPageSizeChange" @update:sorting="onSortingChange" @update:global-filter="onSearchGlobal"
+      @update:column-filters="onColumnFiltersChange" />
+  </div>
 </template>
 
 <style scoped>
 .ring-default {
   --tw-ring-color: #00dc82 !important;
+}
+
+.rtl {
+  direction: rtl;
 }
 </style>

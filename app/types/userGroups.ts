@@ -47,6 +47,12 @@ export type UserGroupsApiResponse<T = UserGroup[]> = {
   pagination: PaginationMeta;
 };
 
+export interface PermissionAssignForm {
+  user_group_id: number;
+  permission_ids: number[];
+}
+
+
 /**
  * Row Type (للاستخدام داخل الجدول أو drawer)
  */
