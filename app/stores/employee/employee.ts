@@ -41,7 +41,7 @@ export const useEmployeesStore = defineStore("employees", {
 
       try {
         const response = await fetchList<PaginatedResponse<Employee>>({
-          endpoint: '/api/employees/employees',
+          endpoint: '/sanctum/employees/employees',
           page: params?.page ?? 1,
           perPage: params?.per_page ?? 10,
           search: params?.filter?.search,
@@ -100,7 +100,7 @@ export const useEmployeesStore = defineStore("employees", {
 const toast = useToast();
       try {
         return await createResource<Employee>({
-          endpoint: '/api/employees',
+          endpoint: '/sanctum/employees/employees',
           payload,
           toast: useToast(),
           onSuccess: (data) => {

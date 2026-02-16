@@ -9,7 +9,7 @@ export function useEmployees() {
   /* ================== Paginated List (for backward compatibility) ================== */
   const list = usePaginatedList({
     key: 'employees',
-    endpoint: 'https://time.telecode.tech/api/employees',
+    endpoint: '/sanctum/employees/employees',
     store: {
       setData: store.setEmployees,
     },
