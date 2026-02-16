@@ -38,11 +38,14 @@ export async function fetchList<T>(options: FetchListOptions): Promise<T> {
     ...(filters ?? {}),
   }
 
-  const res = await $fetch<T>(endpoint, {
-    query,
-    signal,
-    credentials: 'include', // Required for Sanctum SPA cookies
-  })
+const res = await $fetch<T>(endpoint, {
+  query,
+  signal,
+  credentials: 'include',
+  headers: {
+    'X-Requested-With': 'XMLHttpRequest',
+  },
+})
 
   return res
 }
