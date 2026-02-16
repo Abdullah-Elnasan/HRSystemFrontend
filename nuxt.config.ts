@@ -1,3 +1,4 @@
+// nuxt.config.ts
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/image', '@pinia/nuxt'],
 
@@ -5,16 +6,26 @@ export default defineNuxtConfig({
   debug: true,
 
   // ========================================
-  // ⚙️ تثبيت الأيقونات محلياً
+  // ⚙️ حل نهائي: Bundle الأيقونات في البناء
   // ========================================
   icon: {
-    serverBundle: {
-      collections: ['lucide'] // ✅ سيتم تضمينها في البناء
-    },
-    // منع الطلبات الخارجية
     provider: 'server',
-    // تعطيل dynamic loading
-    fetchTimeout: 0
+    serverBundle: {
+      collections: ['lucide', 'heroicons'] // bundle محلي
+    }
+  },
+
+  // ========================================
+  // 🚫 منع /api/_nuxt_icon من الوصول للـ Laravel
+  // ========================================
+  nitro: {
+    routeRules: {
+      '/api/_nuxt_icon/**': {
+        headers: {
+          'cache-control': 'public, max-age=31536000, immutable'
+        }
+      }
+    }
   },
 
   routeRules: {
