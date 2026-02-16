@@ -186,7 +186,7 @@ export async function apiFetch<T>(
       body: options.body,
       headers,
       // Include credentials for Sanctum SPA authentication
-      credentials: isAuthEndpoint ? 'include' : undefined,
+      credentials: isAuthEndpoint ? 'include' : 'include',
       timeout: 10_000,
     })
     // console.log('res')
