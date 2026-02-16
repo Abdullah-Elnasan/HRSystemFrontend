@@ -190,7 +190,7 @@
 
 // ... existing code ...
 
-export async function apiFetch<T>(
+export async function apiFetch2<T>(
   endpoint: string,
   options: {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
