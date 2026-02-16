@@ -100,7 +100,7 @@ export const useEmployeesStore = defineStore("employees", {
 const toast = useToast();
       try {
         return await createResource<Employee>({
-          endpoint: '/api/employees/employees',
+          endpoint: '/server-api/employees/employees',
           payload,
           toast: useToast(),
           onSuccess: (data) => {
@@ -124,7 +124,7 @@ const toast = useToast();
       const toast = useToast();
       try {
         return await updateResource<Employee>({
-          endpoint: `/api/employees/${id}`,
+          endpoint: `/server-api/employees/${id}`,
           payload,
           toast: useToast(),
           onSuccess: (data) => {
@@ -156,7 +156,7 @@ const toast = useToast();
           this.pagination.total -= 1;
         }
 
-        await $fetch(`/api/employees/${id}`, { method: 'DELETE' });
+        await $fetch(`/server-api/employees/${id}`, { method: 'DELETE' });
 
         toast.add({ title: 'تم حذف الموظف بنجاح', color: 'success' });
         return true;
