@@ -100,7 +100,7 @@ export const useEmployeesStore = defineStore("employees", {
 const toast = useToast();
       try {
         return await createResource<Employee>({
-          endpoint: '/sanctum/employees/employees',
+          endpoint: '/api/employees',
           payload,
           toast: useToast(),
           onSuccess: (data) => {
