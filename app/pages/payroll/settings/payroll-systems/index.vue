@@ -2,8 +2,8 @@
 import { generateColumns } from "~/utils/generateColumns";
 import type { PayrollSystem, PayrollSystemForm } from "~/types/payrollSystem";
 import { emptyPayrollSystemForm } from "~/types/payrollSystem";
-import { isPayrollSystemRow } from "~/composables/payrollSystem2/isPayrollSystemRow";
-import { usePayrollSystems } from "~/composables/payrollSystem2/usePayrollSystems";
+import { isPayrollSystemRow } from "~/composables/payrollSystem/isPayrollSystemRow";
+import { usePayrollSystems } from "~/composables/payrollSystem/usePayrollSystems";
 
 const UButton = resolveComponent("UButton");
 
