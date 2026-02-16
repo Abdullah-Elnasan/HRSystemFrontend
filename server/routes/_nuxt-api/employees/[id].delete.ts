@@ -1,4 +1,4 @@
-import { apiFetch } from '../../utils/apiFetch'
+import { apiFetch } from '../../../utils/apiFetch'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

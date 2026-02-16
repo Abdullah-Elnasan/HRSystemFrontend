@@ -1,4 +1,4 @@
-export async function apiFetch2<T>(
+export async function apiFetch222<T>(
   endpoint: string,
   options: {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'

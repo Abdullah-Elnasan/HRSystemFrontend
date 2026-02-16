@@ -1,3 +1,3 @@
-import { createPostFormHandler } from '../../utils/createPostFormHandler'
+import { createPostFormHandler } from '../../../utils/createPostFormHandler'
 
 export default createPostFormHandler('/employees')

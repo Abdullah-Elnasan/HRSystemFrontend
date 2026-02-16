@@ -1,4 +1,4 @@
-import { apiFetch } from '../../utils/apiFetch'
+import { apiFetch } from '../../../utils/apiFetch'
 import { readFormData, getRouterParam } from 'h3'
 
 export default defineEventHandler(async (event) => {
