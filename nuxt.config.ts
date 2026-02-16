@@ -6,19 +6,25 @@ export default defineNuxtConfig({
   debug: true,
 
   // ========================================
-  // ⚙️ تعطيل الأيقونات تماماً من السيرفر
+  // ⚙️ حل نهائي: Bundle الأيقونات في البناء
   // ========================================
-  $production: {
-    icon: {
-      serverBundle: false,
-      provider: 'iconify',
-      iconifyApiEndpoint: 'https://api.iconify.design' // استخدام CDN
+  icon: {
+    provider: 'server',
+    serverBundle: {
+      collections: ['lucide', 'heroicons'] // bundle محلي
     }
   },
 
-  $development: {
-    icon: {
-      serverBundle: false
+  // ========================================
+  // 🚫 منع /api/_nuxt_icon من الوصول للـ Laravel
+  // ========================================
+  nitro: {
+    routeRules: {
+      '/api/_nuxt_icon/**': {
+        headers: {
+          'cache-control': 'public, max-age=31536000, immutable'
+        }
+      }
     }
   },
 
