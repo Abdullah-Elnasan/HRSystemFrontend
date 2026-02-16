@@ -1,5 +1,5 @@
 // ~/composables/payroll-Items/usePayrollRecords.ts
-import { usePayrollItemsStore } from '~/stores/payrollItems3/payrollItems'
+import { usePayrollItemsStore } from '~/stores/payrollItems/payrollItems'
 import type { PayrollItemForm } from '~/types/payrolls/payrollItem'
 import { usePaginatedList } from '~/composables/usePaginatedList'
 
