@@ -1,4 +1,3 @@
-// nuxt.config.ts
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/image', '@pinia/nuxt'],
 
@@ -6,28 +5,24 @@ export default defineNuxtConfig({
   debug: true,
 
   // ========================================
-  // ⚙️ إعدادات الأيقونات
+  // ⚙️ تثبيت الأيقونات محلياً
   // ========================================
   icon: {
-    // تعطيل server bundle لتجنب /api/_nuxt_icon
-    serverBundle: false,
-
-    // أو استخدم collections محددة
-    // collections: ['lucide', 'heroicons']
+    serverBundle: {
+      collections: ['lucide'] // ✅ سيتم تضمينها في البناء
+    },
+    // منع الطلبات الخارجية
+    provider: 'server',
+    // تعطيل dynamic loading
+    fetchTimeout: 0
   },
 
-  // ========================================
-  // 🔀 Route Rules
-  // ========================================
   routeRules: {
     '/': { ssr: true },
     '/app/**': { ssr: false },
     '/login': { ssr: false }
   },
 
-  // ========================================
-  // 🌐 Runtime Config
-  // ========================================
   runtimeConfig: {
     apiSecret: '123',
     public: {
@@ -36,9 +31,6 @@ export default defineNuxtConfig({
     }
   },
 
-  // ========================================
-  // 🎨 Styling & Paths
-  // ========================================
   css: ['~/assets/css/main.css'],
   compatibilityDate: '2025-01-15',
 
@@ -47,9 +39,6 @@ export default defineNuxtConfig({
     '@utils': './server/utils'
   },
 
-  // ========================================
-  // 📝 ESLint Config
-  // ========================================
   eslint: {
     config: {
       stylistic: {
