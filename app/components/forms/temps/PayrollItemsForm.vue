@@ -97,7 +97,7 @@ const employeeIdField: Field<PayrollItemForm> = {
   searchable: true,
   items: [],
   searchApi: async (q: string) => {
-    const res: any = await $fetch("/api/employees/employees", {
+    const res: any = await $fetch("/api/_nuxt-api/employees/employees", {
       params: { "filter[search]": q },
     });
     return res.data;
@@ -219,7 +219,7 @@ const fetchPayrollRuns = async () => {
 
 const fetchEmployees = async () => {
   loadingEmployees.value = true;
-  const res: any = await $fetch("/api/employees/employees");
+  const res: any = await $fetch("/api/_nuxt-api/employees/employees");
   employeeIdField.items = [...res.data];
   loadingEmployees.value = false;
 };

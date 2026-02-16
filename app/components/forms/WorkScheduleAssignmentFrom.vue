@@ -54,7 +54,7 @@ const fetchAssignables = async () => {
 
   const endpoint =
     model.value.assignable_type === "App\\Models\\Employee\\Employee"
-      ? "/api/employees/employees"
+      ? "/api/_nuxt-api/employees/employees"
       : "/api/branches/branches";
 
   const res: any = await $fetch(endpoint);
@@ -70,7 +70,7 @@ const searchAssignables = async (q: string) => {
 
   const endpoint =
     model.value.assignable_type === "App\\Models\\Employee\\Employee"
-      ? "/api/employees/employees"
+      ? "/api/_nuxt-api/employees/employees"
       : "/api/branches/branches";
 
   const res: any = await $fetch(endpoint, {
