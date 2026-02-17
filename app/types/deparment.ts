@@ -1,5 +1,6 @@
 import type { PaginationMeta } from './table'
 
+export type { PaginationMeta }
 /**
  * Model القادم من الـ API
  */
@@ -14,6 +15,12 @@ export type Department = {
   employees_count: number
   active_employees_count: number
   action: string
+}
+
+export interface DepartmentFilters {
+  search?: string
+  page?: number
+  perPage?: number
 }
 
 /**

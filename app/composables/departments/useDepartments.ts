@@ -1,99 +1,103 @@
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { useDepartmentsStore } from '~/stores/departments/departments'
-import type { DepartmentForm } from '~/types/deparment'
-import { usePaginatedList } from '~/composables/usePaginatedList'
+import type { DepartmentForm, DepartmentFilters } from '~/types/deparment'
 
 export function useDepartments() {
   const store = useDepartmentsStore()
-  const toast = useToast()
+  const { departments, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List (for backward compatibility) ================== */
-  const list = usePaginatedList({
-    key: 'departments',
-    endpoint: '/api/departments/departments',
-    store: {
-      setData: store.setDepartments,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page = ref(1)
+  const pageSize = ref(10)
+  const search = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchDepartments(params?: Record<string, any>) {
-    try {
-      await store.fetchDepartments(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الأقسام',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchDepartmentById(id: number | string) {
-    try {
-      return await store.fetchDepartmentById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب القسم',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params من DepartmentFilters ───────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page: page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  /* ================== Create ================== */
-  async function createDepartment(payload: DepartmentForm | FormData) {
-    try {
-      return await store.createDepartment(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء القسم',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchDepartments = (params?: DepartmentFilters) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchDepartments(params ?? buildParams(), signal)
   }
 
-  /* ================== Update ================== */
-  async function updateDepartment(id: number, payload: Partial<DepartmentForm> | FormData) {
-    try {
-      return await store.updateDepartment(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل القسم',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchDepartments = useDebounceFn(fetchDepartments, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchDepartments()
   }
 
-  /* ================== Delete ================== */
-  async function deleteDepartment(id: number) {
-    try {
-      await store.deleteDepartment(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف القسم',
-        color: 'error',
-      })
-      throw error
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchDepartments()
   }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchDepartments()
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchDepartmentById = (id: number | string) =>
+    store.fetchDepartmentById(id)
+
+  const createDepartment = (payload: DepartmentForm | FormData) =>
+    store.createDepartment(payload)
+
+  const updateDepartment = (id: number, payload: Partial<DepartmentForm> | FormData) =>
+    store.updateDepartment(id, payload)
+
+  const deleteDepartment = (id: number) =>
+    store.deleteDepartment(id)
 
   return {
-    ...list,
-    data: computed(() => store.departments),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    // State
+    departments,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
+
+    // Actions
     fetchDepartments,
+    debouncedFetchDepartments,
     fetchDepartmentById,
     createDepartment,
     updateDepartment,
     deleteDepartment,
+
+    // Utilities
     clearError: store.clearError,
   }
 }
