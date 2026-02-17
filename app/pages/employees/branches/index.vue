@@ -15,26 +15,28 @@ definePageMeta({
 
 /* ================== Composable ================== */
 const {
-  data,
+  branches,
   pagination,
-  pending,
-  page,
-  pageSize,
-  search,
-  setPage,
-  setPageSize,
-  setSearch,
-  deleteBranch,
+  loading,
+  error,
+  fetchBranches,
+  debouncedFetchBranches,
   createBranch,
   updateBranch,
+  deleteBranch,
 } = useBranches();
 
+const toast = useToast();
+
+/* ================== State ================== */
 const open = ref(false);
 const titleDrower = ref("");
+const page = ref(1);
+const pageSize = ref(10);
+const search = ref("");
+const firstLoad = ref(true);
 
 /* ================== Computed ================== */
-const branches = computed<Branch[]>(() => data.value ?? []);
-
 const safePagination = computed(() => ({
   total: pagination.value?.total ?? 0,
   per_page: pagination.value?.per_page ?? pageSize.value,
@@ -46,7 +48,6 @@ const safePagination = computed(() => ({
 const pageSizes = [10, 50, 100];
 const sorting = ref<any[]>([]);
 const columnFilters = ref<any[]>([]);
-const firstLoad = ref(true);
 
 const meta = {
   class: {
@@ -65,9 +66,9 @@ const columns = computed(() =>
             name_ar: "الاسم",
             description_ar: "الوصف",
             location_ar: "الموقع",
-            current_work_schedule:'نظام الدوام الحالي',
-            upcoming_work_schedule:'نظام الدوام القادم',
-            payroll_system:'نظام الرواتب ',
+            current_work_schedule: 'نظام الدوام الحالي',
+            upcoming_work_schedule: 'نظام الدوام القادم',
+            payroll_system: 'نظام الرواتب',
             employees_count: "عدد الموظفين",
             active_employees_count: "عدد الموظفين النشطين",
             action: "العمليات",
@@ -94,6 +95,37 @@ const columns = computed(() =>
     : []
 );
 
+/* ================== Fetch Data ================== */
+const loadBranches = async () => {
+  try {
+    await fetchBranches({
+      page: page.value,
+      per_page: pageSize.value,
+      filter: search.value ? { search: search.value } : undefined,
+    });
+  } catch (err: any) {
+    // تجاهل أخطاء الإلغاء
+    if (err?.name !== 'AbortError') {
+      console.error('Error loading branches:', err);
+    }
+  }
+};
+
+// Debounced version للبحث فقط
+const loadBranchesDebounced = async () => {
+  try {
+    await debouncedFetchBranches({
+      page: page.value,
+      per_page: pageSize.value,
+      filter: search.value ? { search: search.value } : undefined,
+    });
+  } catch (err: any) {
+    if (err?.name !== 'AbortError') {
+      console.error('Error loading branches:', err);
+    }
+  }
+};
+
 /* ================== Effects ================== */
 watch(
   branches,
@@ -103,12 +135,43 @@ watch(
   { immediate: true }
 );
 
+// Watch للصفحة والحجم - تحميل فوري
+watch([page, pageSize], () => {
+  loadBranches();
+});
+
+// Watch للبحث - تحميل مع debounce
+watch(search, () => {
+  page.value = 1; // إعادة للصفحة الأولى
+  loadBranchesDebounced();
+});
+
+// التحميل الأولي
+onMounted(() => {
+  loadBranches();
+});
+
 /* ================== Handlers ================== */
-const onPageChange = (p: number) => setPage(p);
-const onPageSizeChange = (s: number) => setPageSize(s);
-const onSearchGlobal = (val: string) => setSearch(val);
-const onSortingChange = (val: any[]) => (sorting.value = val);
-const onColumnFiltersChange = (val: any[]) => (columnFilters.value = val);
+const onPageChange = (p: number) => {
+  page.value = p;
+};
+
+const onPageSizeChange = (s: number) => {
+  pageSize.value = s;
+  page.value = 1;
+};
+
+const onSearchGlobal = (val: string) => {
+  search.value = val;
+};
+
+const onSortingChange = (val: any[]) => {
+  sorting.value = val;
+};
+
+const onColumnFiltersChange = (val: any[]) => {
+  columnFilters.value = val;
+};
 
 /* ================== Form Management ================== */
 const editingId = ref<number | null>(null);
@@ -152,14 +215,18 @@ const onSubmit = async (value: BranchForm) => {
 };
 
 const onDeleteBranchHandler = async (id: number) => {
-  await deleteBranch(id);
+  try {
+    await deleteBranch(id);
+  } catch (error) {
+    console.error("Delete error:", error);
+  }
 };
 </script>
 
 <template>
   <!-- Loading أول تحميل فقط -->
   <div
-    v-if="firstLoad && pending"
+    v-if="firstLoad && loading"
     class="flex justify-center items-center py-20"
   >
     <span class="text-muted text-lg">جارٍ التحميل...</span>
@@ -171,13 +238,20 @@ const onDeleteBranchHandler = async (id: number) => {
     :data="branches"
     :total="safePagination.total"
     :page="page"
+    :actions="{
+      view: false,
+      copy: false,
+      edit: { label: 'تعديل' },
+      delete: true,
+    }"
     :page-sizes="pageSizes"
     :page-size="pageSize"
-    :loading="pending"
+    :loading="loading"
     :meta="meta"
     :sorting="sorting"
     :global-filter="search"
     :column-filters="columnFilters"
+    :btn-create="true"
     title-btn-create="إضافة فرع"
     title-btn-icon="material-symbols:group-add-outline-rounded"
     title-btn-edit="تعديل فرع"
@@ -241,7 +315,6 @@ const onDeleteBranchHandler = async (id: number) => {
           color="neutral"
           class="justify-center"
           @click="formRef?.submit()"
-
         />
 
         <UButton

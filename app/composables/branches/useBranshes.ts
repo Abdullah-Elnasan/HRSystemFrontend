@@ -1,101 +1,59 @@
 // composables/branches/useBranches.ts
+import { storeToRefs } from 'pinia'
 import { useBranchesStore } from '~/stores/branches/branches'
 import type { BranchForm } from '~/types/branch'
-import { usePaginatedList } from '~/composables/usePaginatedList'
+import { useDebounceFn } from '@vueuse/core' // إذا كنت تستخدم VueUse
 
 export function useBranches() {
   const store = useBranchesStore()
-  const toast = useToast()
 
-  /* ================== Paginated List (for backward compatibility) ================== */
-  const list = usePaginatedList({
-    key: 'branches',
-    endpoint: '/api/branches/branches',
-    store: {
-      setData: store.setBranches,
-    },
-  })
+  // استخدام storeToRefs للحفاظ على الـ reactivity
+  const { branches, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Fetch ================== */
-  async function fetchBranches(params?: Record<string, any>) {
-    try {
-      await store.fetchBranches(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الفروع',
-        color: 'error',
-      })
+  // AbortController للإلغاء
+  let abortController: AbortController | null = null
+
+  /* ================== Fetch مع إلغاء الطلبات السابقة ================== */
+  const fetchBranches = async (params?: Record<string, any>) => {
+    // إلغاء الطلب السابق إن وجد
+    if (abortController) {
+      abortController.abort()
     }
+
+    // إنشاء controller جديد
+    abortController = new AbortController()
+
+    return store.fetchBranches(params, abortController.signal)
   }
 
-  async function fetchBranchById(id: number | string) {
-    try {
-      return await store.fetchBranchById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الفرع',
-        color: 'error',
-      })
-      throw error
-    }
-  }
+  // Debounced version للبحث
+  const debouncedFetchBranches = useDebounceFn(
+    (params?: Record<string, any>) => fetchBranches(params),
+    500 // تأخير 500ms
+  )
 
-  /* ================== Create ================== */
-  async function createBranch(payload: BranchForm) {
-    try {
-      return await store.createBranch(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء الفرع',
-        color: 'error',
-      })
-      throw error
-    }
-  }
+  const fetchBranchById = (id: number | string) =>
+    store.fetchBranchById(id)
 
-  /* ================== Update ================== */
-  async function updateBranch(id: number, payload: Partial<BranchForm>) {
-    try {
-      return await store.updateBranch(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل الفرع',
-        color: 'error',
-      })
-      throw error
-    }
-  }
+  const createBranch = (payload: BranchForm) =>
+    store.createBranch(payload)
 
-  /* ================== Delete ================== */
-  async function deleteBranch(id: number) {
-    try {
-      await store.deleteBranch(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف الفرع',
-        color: 'error',
-      })
-      throw error
-    }
-  }
+  const updateBranch = (id: number, payload: Partial<BranchForm>) =>
+    store.updateBranch(id, payload)
+
+  const deleteBranch = (id: number) =>
+    store.deleteBranch(id)
 
   return {
-    // من usePaginatedList (للتوافق مع الكود القديم)
-    ...list,
-
-    // State
-    data: computed(() => store.branches),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    // State - reactive refs
+    branches,
+    pagination,
+    loading,
+    error,
 
     // Actions
     fetchBranches,
+    debouncedFetchBranches,
     fetchBranchById,
     createBranch,
     updateBranch,

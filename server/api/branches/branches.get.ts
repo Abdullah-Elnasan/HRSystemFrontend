@@ -1,4 +1,4 @@
-// server/api/employees.get.ts
+// server/api/branches.get.ts
 import { proxyFetch } from '../../utils/proxyFetch'
 
 export default defineEventHandler(async (event) => {
