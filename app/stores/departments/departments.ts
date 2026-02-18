@@ -1,6 +1,8 @@
+// E:\Nuxt\HR-System-Frontend\app\stores\departments\departments.ts
 import { defineStore } from 'pinia'
 import { parseError } from '~/utils/parseError'
-import type { Department, DepartmentForm, DepartmentApiResponse } from '~/types/deparment'
+import type { Department, DepartmentForm } from '~/types/deparment'
+import type { apiResponse } from '~/types/table'
 import type { PaginationMeta } from '~/types/table'
 
 interface DepartmentsState {
@@ -28,7 +30,7 @@ export const useDepartmentsStore = defineStore('departments', {
       this._setLoading(true)
       this._setError(null)
       try {
-        const response = await $api<DepartmentApiResponse<Department[]>>(
+        const response = await $api<apiResponse<Department[]>>(
           `${config.public.apiBase}/api/departments`,
 
           {
@@ -52,7 +54,7 @@ export const useDepartmentsStore = defineStore('departments', {
       const config = useRuntimeConfig();
       const { $api } = useNuxtApp();
       try {
-        const response = await $api<DepartmentApiResponse<Department>>(
+        const response = await $api<apiResponse<Department>>(
           `${config.public.apiBase}/api/departments/${id}`
         )
         return response.data
@@ -70,7 +72,7 @@ export const useDepartmentsStore = defineStore('departments', {
       const config = useRuntimeConfig();
       const { $api } = useNuxtApp();
       try {
-        const response = await $api<DepartmentApiResponse<Department>>(
+        const response = await $api<apiResponse<Department>>(
           `${config.public.apiBase}/api/departments`,
           { method: 'POST', body: payload }
         )
@@ -90,7 +92,7 @@ export const useDepartmentsStore = defineStore('departments', {
       const config = useRuntimeConfig();
       const { $api } = useNuxtApp();
       try {
-        const response = await $api<DepartmentApiResponse<Department>>(
+        const response = await $api<apiResponse<Department>>(
           `${config.public.apiBase}/api/departments/${id}`,
           { method: 'PUT', body: payload }
         )
@@ -111,7 +113,7 @@ export const useDepartmentsStore = defineStore('departments', {
       const config = useRuntimeConfig();
       const { $api } = useNuxtApp();
       try {
-        const response = await $api<DepartmentApiResponse<null>>(`${config.public.apiBase}/api/departments/${id}`, { method: 'DELETE' })
+        const response = await $api<apiResponse<null>>(`${config.public.apiBase}/api/departments/${id}`, { method: 'DELETE' })
         this.departments = this.departments.filter(d => d.id !== id)
         return response // ✅ أضف هذا
       } catch (error: unknown) {

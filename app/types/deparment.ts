@@ -46,13 +46,13 @@ export const emptyDepartmentForm = (): DepartmentForm => ({
 /**
  * API Response
  */
-export type DepartmentApiResponse<T> = {
-  success: boolean
-  messageAr: string
-  messageEn: string
-  data: T
-  pagination: PaginationMeta
-}
+// export type DepartmentApiResponse<T> = {
+//   success: boolean
+//   messageAr: string
+//   messageEn: string
+//   data: T
+//   pagination: PaginationMeta
+// }
 
 export type DepartmentRow = Pick<
   Department,

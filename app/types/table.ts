@@ -35,4 +35,10 @@ export type TableActionsConfig = {
 };
 
 
-
+export type apiResponse<T> = {
+  success: boolean
+  messageAr: string
+  messageEn: string
+  data: T
+  pagination: PaginationMeta
+}

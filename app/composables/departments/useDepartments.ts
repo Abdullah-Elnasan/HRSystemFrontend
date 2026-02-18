@@ -1,3 +1,4 @@
+// E:\Nuxt\HR-System-Frontend\app\composables\departments\useDepartments.ts
 import { storeToRefs } from 'pinia'
 import { useDebounceFn } from '@vueuse/core'
 import { useDepartmentsStore } from '~/stores/departments/departments'

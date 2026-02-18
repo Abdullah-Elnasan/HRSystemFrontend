@@ -1,4 +1,6 @@
-import type { DepartmentForm, DepartmentApiResponse } from '~/types/deparment'
+// E:\Nuxt\HR-System-Frontend\app\composables\departments\useDepartmentActions.ts
+import type { DepartmentForm } from '~/types/deparment'
+import type { apiResponse } from '~/types/table'
 import { useDepartments } from '~/composables/departments/useDepartments'
 import { handleApiError } from '~/utils/handleApiError'
 
@@ -9,7 +11,7 @@ export function useDepartmentActions(onSuccess: () => void) {
   // ─── Submit (Create / Update) ────────────────────────────
   async function submit(editingId: number | null, payload: DepartmentForm) {
     try {
-      let response: DepartmentApiResponse<any>
+      let response: apiResponse<any>
 
       if (editingId) {
         response = await updateDepartment(editingId, payload)

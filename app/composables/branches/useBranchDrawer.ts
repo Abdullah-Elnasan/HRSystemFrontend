@@ -1,13 +1,12 @@
-// E:\Nuxt\HR-System-Frontend\app\composables\departments\useDepartmentDrawer.ts
-import { isDepartmentRow } from '~/composables/departments/isDepartmentRow'
-import { emptyDepartmentForm } from '~/types/deparment'
-import type { DepartmentForm } from '~/types/deparment'
+import { isBranchRow } from '~/composables/branches/isBranchRow'
+import { emptyBranchForm } from '~/types/branch'
+import type { BranchForm } from '~/types/branch'
 
-export function useDepartmentDrawer() {
+export function useBranchDrawer() {
   const isOpen    = ref(false)
   const title     = ref('')
   const editingId = ref<number | null>(null)
-  const formModel = reactive<DepartmentForm>(emptyDepartmentForm())
+  const formModel = reactive<BranchForm>(emptyBranchForm())
 
   const mode = computed<'create' | 'edit'>(() =>
     editingId.value ? 'edit' : 'create'
@@ -19,17 +18,19 @@ export function useDepartmentDrawer() {
     title.value  = payload.title
     isOpen.value = true
 
-    if (payload.row && isDepartmentRow(payload.row)) {
+    if (payload.row && isBranchRow(payload.row)) {
       editingId.value = payload.row.id
       Object.assign(formModel, {
         name_ar:        payload.row.name_ar,
         name_en:        payload.row.name_en,
         description_ar: payload.row.description_ar ?? '',
         description_en: payload.row.description_en ?? '',
+        location_ar:    payload.row.location_ar    ?? '',
+        location_en:    payload.row.location_en    ?? '',
       })
     } else {
       editingId.value = null
-      Object.assign(formModel, emptyDepartmentForm())
+      Object.assign(formModel, emptyBranchForm())
     }
   }
 

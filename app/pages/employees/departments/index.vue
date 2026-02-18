@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// E:\Nuxt\HR-System-Frontend\app\pages\employees\departments\index.vue
 import { generateColumns } from '~/utils/generateColumns'
 import type { Department, DepartmentForm } from '~/types/deparment'
 import { useDepartments } from '~/composables/departments/useDepartments'
