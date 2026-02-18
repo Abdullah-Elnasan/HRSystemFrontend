@@ -1,99 +1,103 @@
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { useWorkSchedulesStore } from '~/stores/workSchedule/workSchedule'
-import type { WorkScheduleForm, WorkSchedulePayload } from '~/types/workSchedule'
-import { usePaginatedList } from '~/composables/usePaginatedList'
+import type { WorkSchedulePayload } from '~/types/workSchedule'
 
 export function useWorkSchedules() {
   const store = useWorkSchedulesStore()
-  const toast = useToast()
+  const { workSchedules, pagination, loading, error } = storeToRefs(store)
 
-  const list = usePaginatedList({
-    key: 'workSchedules',
-    endpoint: '/api/work-schedules/work-schedules',
-    store: { setData: store.setWorkSchedules },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  async function fetchWorkSchedules(params?: Record<string, any>) {
-    console.log('fetchWorkSchedules called with params:', params)
-    try {
-      await store.fetchWorkSchedules(params)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب جداول العمل',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchWorkScheduleById(id: number | string) {
-    try {
-      return await store.fetchWorkScheduleById(id)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب جدول العمل',
-        color: 'error',
-      })
-      throw err
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  async function createWorkSchedule(payload: WorkSchedulePayload) {
-    try {
-      return await store.createWorkSchedule(payload)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء جدول العمل',
-        color: 'error',
-      })
-      throw err
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchWorkSchedules = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchWorkSchedules(params ?? buildParams(), signal)
   }
 
-  async function updateWorkSchedule(
-    id: number,
-    payload: Partial<WorkScheduleForm> | FormData
-  ) {
-    try {
-      return await store.updateWorkSchedule(id, payload)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل جدول العمل',
-        color: 'error',
-      })
-      throw err
-    }
+  const debouncedFetchWorkSchedules = useDebounceFn(fetchWorkSchedules, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchWorkSchedules()
   }
 
-  async function deleteWorkSchedule(id: number) {
-    try {
-      await store.deleteWorkSchedule(id)
-    } catch (err: any) {
-      console.log('Delete Error 2:', err)
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف جدول العمل',
-        color: 'error',
-      })
-      throw err
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchWorkSchedules()
   }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchWorkSchedules()
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchWorkScheduleById = (id: number | string) =>
+    store.fetchWorkScheduleById(id)
+
+  const createWorkSchedule = (payload: WorkSchedulePayload) =>
+    store.createWorkSchedule(payload)
+
+  const updateWorkSchedule = (id: number, payload: Partial<WorkSchedulePayload> | FormData) =>
+    store.updateWorkSchedule(id, payload)
+
+  const deleteWorkSchedule = (id: number) =>
+    store.deleteWorkSchedule(id)
 
   return {
-    ...list,
+    // State
+    workSchedules,
+    pagination,
+    loading,
+    error,
 
-    data: computed(() => store.workSchedules),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
+    // Actions
     fetchWorkSchedules,
+    debouncedFetchWorkSchedules,
     fetchWorkScheduleById,
     createWorkSchedule,
     updateWorkSchedule,
     deleteWorkSchedule,
+
+    // Utilities
     clearError: store.clearError,
   }
 }

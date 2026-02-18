@@ -4,7 +4,6 @@ export type StatusConfig = {
   color: 'success' | 'warning' | 'error' | 'neutral' | string
 }
 
-
 export type PaginationMeta = {
   current_page: number;
   last_page: number;
@@ -16,7 +15,6 @@ export type PaginatedResponse<T> = {
   data: T[];
   pagination: PaginationMeta;
 };
-
 
 export type TableActionItem = {
   enabled?: boolean;
@@ -33,7 +31,6 @@ export type TableActionsConfig = {
   delete?: boolean | TableActionItem;
   displayMode?: TableActionsDisplayMode; // ← جديد
 };
-
 
 export type apiResponse<T> = {
   success: boolean

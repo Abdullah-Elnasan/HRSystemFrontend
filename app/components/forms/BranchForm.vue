@@ -12,7 +12,8 @@ const props = defineProps<{
   loading?: boolean;
   columns?: 1 | 2 | 3 | 4;
 }>();
-
+const config = useRuntimeConfig();
+const { $api } = useNuxtApp();
 const emit = defineEmits<{
   (e: "update:modelValue", v: BranchForm): void;
   (e: "submit", v: BranchForm): void;
@@ -21,7 +22,9 @@ const emit = defineEmits<{
 const model = useFormModel(toRef(props, "modelValue"), emit);
 
 /* ================== Date Helper ================== */
-const stringToCalendarDate = (dateString: string | null | undefined): CalendarDate => {
+const stringToCalendarDate = (
+  dateString: string | null | undefined,
+): CalendarDate => {
   if (dateString) {
     const parts = dateString.split("-");
     if (parts.length === 3) {
@@ -63,7 +66,7 @@ const createOnlyFields: Field<BranchForm>[] = [
     searchable: true,
     items: [],
     searchApi: async (q: string) => {
-      const res: any = await $fetch("/api/work-schedules/work-schedules", {
+      const res: any = await $api( `${config.public.apiBase}/api/work-schedules`, {
         params: { "filter[search]": q },
       });
       return res.data;
@@ -104,9 +107,7 @@ const createOnlyFields: Field<BranchForm>[] = [
 ];
 
 const fields = computed<Field<BranchForm>[]>(() =>
-  props.mode === "edit"
-    ? baseFields
-    : [...baseFields, ...createOnlyFields],
+  props.mode === "edit" ? baseFields : [...baseFields, ...createOnlyFields],
 );
 
 /* ================== Loading ================== */
@@ -116,13 +117,10 @@ const loadingfetchPayrollSystems = ref(false);
 const fetchWorkSchedules = async () => {
   loadingWorkSchedules.value = true;
   const res: any = await $fetch("/api/work-schedules/work-schedules");
-  const field = createOnlyFields.find(
-    (f) => f.name === "work_schedule_id",
-  );
+  const field = createOnlyFields.find((f) => f.name === "work_schedule_id");
   if (field) field.items = [...res.data];
   loadingWorkSchedules.value = false;
 };
-
 
 const fetchPayrollSystems = async () => {
   loadingfetchPayrollSystems.value = true;
@@ -134,13 +132,11 @@ const fetchPayrollSystems = async () => {
   loadingfetchPayrollSystems.value = false;
 };
 
-
 /* ================== Expose ================== */
 const formRef = ref<{ submit: () => void } | null>(null);
 defineExpose({
   submit: () => formRef.value?.submit(),
 });
-
 
 // defineExpose({
 //   submit: async () => {
@@ -148,7 +144,6 @@ defineExpose({
 //     formRef.value!.submit()
 //   }
 // })
-
 
 fetchWorkSchedules();
 fetchPayrollSystems();
@@ -165,7 +160,6 @@ fetchPayrollSystems();
       :select-loading="{
         work_schedule_id: loadingWorkSchedules,
         payroll_system_id: loadingfetchPayrollSystems,
-
       }"
       @submit="emit('submit', $event)"
       dir="rtl"
