@@ -1,159 +1,145 @@
-// ~/composables/attendances/useAttendance.ts
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { useAttendanceStore } from '~/stores/attendances/attendances'
 import type { AttendanceForm } from '~/types/attendance'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 import dayjs from 'dayjs'
 
 export function useAttendance(options?: {
-  dateFrom?: string;
-  dateTo?: string;
-  branchId?: number | null;
-  departmentId?: number | null;
-  status?: string | null;
+  dateFrom?:     string
+  dateTo?:       string
+  branchId?:     number | null
+  departmentId?: number | null
+  status?:       string | null
 }) {
   const store = useAttendanceStore()
-  const toast = useToast()
+  const { records, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Default Filters ================== */
-  // 🗓️ الشهر الحالي افتراضيًا
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
+
+  // ─── Default Filters ──────────────────────────────────
   const startOfMonth = dayjs().startOf('month').format('YYYY-MM-DD')
-  const endOfMonth = dayjs().endOf('month').format('YYYY-MM-DD')
+  const endOfMonth   = dayjs().endOf('month').format('YYYY-MM-DD')
 
-  // بناء الفلاتر الأولية
-  const filters = reactive<Record<string, any>>({
+  const activeFilters = reactive<Record<string, any>>({
     'filter[date_from]': options?.dateFrom ?? startOfMonth,
-    'filter[date_to]': options?.dateTo ?? endOfMonth,
+    'filter[date_to]':   options?.dateTo   ?? endOfMonth,
+    ...(options?.branchId     ? { 'filter[branch_id]':     options.branchId     } : {}),
+    ...(options?.departmentId ? { 'filter[department_id]': options.departmentId } : {}),
+    ...(options?.status       ? { 'filter[status]':        options.status       } : {}),
   })
 
-  // إضافة الفلاتر الاختيارية
-  if (options?.branchId !== undefined && options.branchId !== null) {
-    filters['filter[branch_id]'] = options.branchId
-  }
-  if (options?.departmentId !== undefined && options.departmentId !== null) {
-    filters['filter[department_id]'] = options.departmentId
-  }
-  if (options?.status !== undefined && options.status !== null) {
-    filters['filter[status]'] = options.status
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'attendance',
-    endpoint: '/api/attendances/attendances',
-    store: {
-      setData: store.setRecords,
-    },
-    filters,
-  })
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams(extra?: Record<string, any>) {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
+      ...activeFilters,
+    }
 
-  /* ================== Refetch with New Filters ================== */
-  async function refetch(newFilters: Record<string, any>) {
-    try {
-      // تحديث الفلاتر
-      Object.keys(newFilters).forEach(key => {
-        if (newFilters[key] === null || newFilters[key] === undefined) {
-          delete filters[key]
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    if (extra) {
+      Object.entries(extra).forEach(([key, val]) => {
+        if (val === null || val === undefined) {
+          delete params[key]
         } else {
-          filters[key] = newFilters[key]
+          params[key] = val
         }
       })
-
-      // إعادة جلب البيانات
-      await list.refresh()
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: 'فشل في تحديث البيانات',
-        color: 'error',
-      })
     }
+
+    return params
   }
 
-  /* ================== Fetch ================== */
-  async function fetchRecords(params?: Record<string, any>) {
-    try {
-      await store.fetchRecords(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجلات الحضور',
-        color: 'error',
-      })
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchRecords = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchRecords(params ?? buildParams(), signal)
   }
 
-  async function fetchRecordById(id: number | string) {
-    try {
-      return await store.fetchRecordById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجل الحضور',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchRecords = useDebounceFn(fetchRecords, 500)
+
+  // ─── Refetch مع فلاتر جديدة ───────────────────────────
+  function refetch(newFilters: Record<string, any>) {
+    Object.entries(newFilters).forEach(([key, val]) => {
+      if (val === null || val === undefined) {
+        delete activeFilters[key]
+      } else {
+        activeFilters[key] = val
+      }
+    })
+    page.value = 1
+    return fetchRecords(buildParams())
   }
 
-  /* ================== Create ================== */
-  async function createRecord(payload: AttendanceForm) {
-    try {
-      return await store.createRecord(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء سجل الحضور',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchRecords(buildParams())
   }
 
-  /* ================== Update ================== */
-  async function updateRecord(id: number, payload: Partial<AttendanceForm>) {
-    try {
-      return await store.updateRecord(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل سجل الحضور',
-        color: 'error',
-      })
-      throw error
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchRecords(buildParams())
   }
 
-  /* ================== Delete ================== */
-  async function deleteRecord(id: number) {
-    try {
-      await store.deleteRecord(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف سجل الحضور',
-        color: 'error',
-      })
-      throw error
-    }
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchRecords(buildParams())
   }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchRecordById = (id: number | string) =>
+    store.fetchRecordById(id)
+
+  const createRecord = (payload: AttendanceForm | FormData) =>
+    store.createRecord(payload)
+
+  const updateRecord = (id: number, payload: Partial<AttendanceForm> | FormData) =>
+    store.updateRecord(id, payload)
+
+  const deleteRecord = (id: number) =>
+    store.deleteRecord(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.records),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    records,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchRecords,
+    debouncedFetchRecords,
     fetchRecordById,
     createRecord,
     updateRecord,
     deleteRecord,
-    refetch, // ✅ إضافة دالة refetch
+    refetch,
 
     // Utilities
     clearError: store.clearError,
