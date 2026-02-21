@@ -24,7 +24,8 @@ const emit = defineEmits<{
 
 
 const model = useFormModel(toRef(props, "modelValue"), emit);
-
+const config = useRuntimeConfig();
+const { $api } = useNuxtApp();
 
 /* ================== Date Handling Helpers ================== */
 
@@ -93,7 +94,7 @@ const baseFields = reactive<Field<EmployeeForm>[]>([
     searchable: true,
     items: [],
     searchApi: async (q: string) => {
-      const res: any = await $fetch("/api/departments/departments", {
+      const res: any = await $api(`${config.public.apiBase}/api/departments`, {
         params: {
           "filter[search]": q,
         },
@@ -116,7 +117,7 @@ const baseFields = reactive<Field<EmployeeForm>[]>([
     searchable: true,
     items: [],
     searchApi: async (q: string) => {
-      const res: any = await $fetch("/api/user-groups/user-groups", {
+      const res: any = await $api(`${config.public.apiBase}/api/user-groups`, {
         params: {
           "filter[search]": q,
         },
@@ -140,7 +141,7 @@ const baseFields = reactive<Field<EmployeeForm>[]>([
     searchable: true,
     items: [],
     searchApi: async (q: string) => {
-      const res: any = await $fetch("/api/branches/branches", {
+      const res: any = await $api(`${config.public.apiBase}/api/branches`, {
         params: {
           "filter[search]": q,
         },
@@ -186,7 +187,7 @@ const createOnlyFields: Field<EmployeeForm>[] = [
     searchable: true,
     items: [],
     searchApi: async (q: string) => {
-      const res: any = await $fetch("/api/work-schedules/work-schedules", {
+      const res: any = await $api(`${config.public.apiBase}/api/work-schedules`, {
         params: { "filter[search]": q },
       });
       return res.data;
@@ -206,7 +207,7 @@ const createOnlyFields: Field<EmployeeForm>[] = [
     searchable: true,
     items: [],
     searchApi: async (q: string) => {
-      const res: any = await $fetch("/api/payroll-systems/payroll-systems", {
+      const res: any = await $api(`${config.public.apiBase}/api/payroll-systems`, {
         params: { "filter[search]": q },
       });
       return res.data;
@@ -266,7 +267,7 @@ const loadingfetchPayrollSystems = ref(false);
 
 const fetchDepartments = async () => {
   loadingDepartments.value = true;
-  const res: any = await $fetch("/api/departments/departments");
+  const res: any = await $api(`${config.public.apiBase}/api/departments`);
   const field = baseFields.find((f) => f.name === "department_id");
   if (field) {
     field.items = [...res.data];
@@ -277,7 +278,7 @@ const fetchDepartments = async () => {
 
 const fetchBranches = async () => {
   loadingBranches.value = true;
-  const res: any = await $fetch("/api/branches/branches");
+  const res: any = await $api(`${config.public.apiBase}/api/branches`);
   const field = baseFields.find((f) => f.name === "branch_id");
   if (field) {
     field.items = [...res.data];
@@ -288,7 +289,7 @@ const fetchBranches = async () => {
 
 const fetchUserGroups = async () => {
   loadingUserGroups.value = true;
-  const res: any = await $fetch("/api/user-groups/user-groups");
+  const res: any = await $api(`${config.public.apiBase}/api/user-groups`);
   const field = baseFields.find((f) => f.name === "user_group_id");
   if (field) {
     field.items = [...res.data];
@@ -299,7 +300,7 @@ const fetchUserGroups = async () => {
 
 const fetchWorkSchedules = async () => {
   loadingWorkSchedules.value = true;
-  const res: any = await $fetch("/api/work-schedules/work-schedules");
+  const res: any = await $api(`${config.public.apiBase}/api/work-schedules`);
   console.log(res);
   const field = createOnlyFields.find((f) => f.name === "work_schedule_id");
   if (field) {
@@ -309,7 +310,7 @@ const fetchWorkSchedules = async () => {
 };
 const fetchPayrollSystems= async () => {
   loadingfetchPayrollSystems.value = true;
-  const res: any = await $fetch("/api/payroll-systems/payroll-systems");
+  const res: any = await $api(`${config.public.apiBase}/api/payroll-systems`);
   console.log(res);
   const field = createOnlyFields.find((f) => f.name === "payroll_system_id");
   if (field) {

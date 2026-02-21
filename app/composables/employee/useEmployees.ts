@@ -1,99 +1,103 @@
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { useEmployeesStore } from '~/stores/employee/employee'
 import type { EmployeeForm } from '~/types/employee'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function useEmployees() {
   const store = useEmployeesStore()
-  const toast = useToast()
+  const { employees, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List (for backward compatibility) ================== */
-  const list = usePaginatedList({
-    key: 'employees',
-    endpoint: '/_nuxt-api/employees/employees',
-    store: {
-      setData: store.setEmployees,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchEmployees(params?: Record<string, any>) {
-    try {
-      await store.fetchEmployees(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الموظفين',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchEmployeeById(id: number | string) {
-    try {
-      return await store.fetchEmployeeById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الموظف',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  /* ================== Create ================== */
-  async function createEmployee(payload: EmployeeForm | FormData) {
-    try {
-      return await store.createEmployee(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء الموظف',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchEmployees = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchEmployees(params ?? buildParams(), signal)
   }
 
-  /* ================== Update ================== */
-  async function updateEmployee(id: number, payload: Partial<EmployeeForm> | FormData) {
-    try {
-      return await store.updateEmployee(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل الموظف',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchEmployees = useDebounceFn(fetchEmployees, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchEmployees()
   }
 
-  /* ================== Delete ================== */
-  async function deleteEmployee(id: number) {
-    try {
-      await store.deleteEmployee(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف الموظف',
-        color: 'error',
-      })
-      throw error
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchEmployees()
   }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchEmployees()
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchEmployeeById = (id: number | string) =>
+    store.fetchEmployeeById(id)
+
+  const createEmployee = (payload: EmployeeForm | FormData) =>
+    store.createEmployee(payload)
+
+  const updateEmployee = (id: number, payload: Partial<EmployeeForm> | FormData) =>
+    store.updateEmployee(id, payload)
+
+  const deleteEmployee = (id: number) =>
+    store.deleteEmployee(id)
 
   return {
-    ...list,
-    data: computed(() => store.employees),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    // State
+    employees,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
+
+    // Actions
     fetchEmployees,
+    debouncedFetchEmployees,
     fetchEmployeeById,
     createEmployee,
     updateEmployee,
     deleteEmployee,
+
+    // Utilities
     clearError: store.clearError,
   }
 }
