@@ -1,268 +1,196 @@
 <script setup lang="ts">
-import { generateColumns } from "~/utils/generateColumns";
-import type { WorkScheduleAssignment, WorkScheduleAssignmentForm } from "~/types/workScheduleAssignments";
-import { emptyWorkScheduleAssignmentForm } from "~/types/workScheduleAssignments";
-import { isWorkScheduleAssignmentRow } from "~/composables/workScheduleAssignment2/isWorkScheduleAssignmentRow";
-import { useWorkScheduleAssignments } from "~/composables/workScheduleAssignment2/useWorkScheduleAssignments";
+import { generateColumns } from '~/utils/generateColumns'
+import type { WorkScheduleAssignment, WorkScheduleAssignmentForm } from '~/types/workScheduleAssignments'
+import { useWorkScheduleAssignments } from '~/composables/workScheduleAssignment/useWorkScheduleAssignments'
+import { useWorkScheduleAssignmentDrawer } from '~/composables/workScheduleAssignment/useWorkScheduleAssignmentDrawer'
+import { useWorkScheduleAssignmentActions } from '~/composables/workScheduleAssignment/useWorkScheduleAssignmentActions'
 
-const UButton = resolveComponent("UButton");
+const UButton = resolveComponent('UButton')
 
 definePageMeta({
-  layout: "dashboard",
-  title: "إدارة إسناد أنظمة الدوام",
+  layout: 'dashboard',
+  title: 'إدارة إسناد أنظمة الدوام',
   keepalive: false,
-});
+})
 
-/* ================== Composable ================== */
+/* ================== Data ================== */
 const {
-  data,
+  assignments,
   pagination,
-  pending,
+  loading,
   page,
   pageSize,
   search,
   setPage,
   setPageSize,
   setSearch,
-  deleteAssignment,
-  createAssignment,
-  updateAssignment,
-} = useWorkScheduleAssignments();
+  fetchAssignments,
+} = useWorkScheduleAssignments()
 
-const open = ref(false);
-const titleDrower = ref("");
+/* ================== Drawer ================== */
+const drawer = useWorkScheduleAssignmentDrawer()
 
-/* ================== Computed ================== */
-const assignments = computed<WorkScheduleAssignment[]>(() => data.value ?? []);
+/* ================== Form Ref ================== */
+const formRef = ref<{ submit: () => void } | null>(null)
+
+/* ================== Actions ================== */
+const { submit, remove } = useWorkScheduleAssignmentActions(drawer.close)
+
+/* ================== Table ================== */
+const PAGE_SIZES: number[] = [10, 50, 100]
+
+const firstLoad     = ref(true)
+const sorting       = ref<any[]>([])
+const columnFilters = ref<any[]>([])
 
 const safePagination = computed(() => ({
-  total: pagination.value?.total ?? 0,
-  per_page: pagination.value?.per_page ?? pageSize.value,
+  total:        pagination.value?.total        ?? 0,
+  per_page:     pagination.value?.per_page     ?? pageSize.value,
   current_page: pagination.value?.current_page ?? page.value,
-  last_page: pagination.value?.last_page ?? 1,
-}));
+  last_page:    pagination.value?.last_page    ?? 1,
+}))
 
-/* ================== Table State ================== */
-const pageSizes = [10, 50, 100];
-const sorting = ref<any[]>([]);
-const columnFilters = ref<any[]>([]);
-const firstLoad = ref(true);
+// ─── Status Helper ────────────────────────────────────
+function getAssignmentStatus(assignment: WorkScheduleAssignment) {
+  if (!assignment.ends_at) return 'نشط'
+  return new Date(assignment.ends_at) > new Date() ? 'نشط' : 'منتهي'
+}
 
-const meta = {
-  class: {
-    tr: (row: any) =>
-      "bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow",
-  },
-};
-
-/* ================== Computed Status ================== */
-const getAssignmentStatus = (assignment: WorkScheduleAssignment) => {
-  if (!assignment.ends_at) return "نشط";
-  const endDate = new Date(assignment.ends_at);
-  const now = new Date();
-  return endDate > now ? "نشط" : "منتهي";
-};
-
-
-
-/* ================== Enhanced Data with Status ================== */
+// ─── Enhanced Data ────────────────────────────────────
 const enhancedAssignments = computed(() =>
-  assignments.value.map(assignment => ({
-    ...assignment,
+  assignments.value?.map(a => ({
+    ...a,
+    assignable_type: a.assignable.type === 'Employee' ? 'موظف'
+      : a.assignable.type === 'Branch' ? 'فرع' : 'قسم',
+    assignable_name:    a.assignable.name,
+    work_schedule_name: a.work_schedule.name,
+    status:             getAssignmentStatus(a),
+  })) ?? []
+)
 
-    assignable_type: assignment.assignable.type === "Employee"
-      ? "موظف"
-      : assignment.assignable.type === "Branch"
-      ? "فرع"
-      : "قسم",
-    assignable_name: assignment.assignable.name,
-    work_schedule_name: assignment.work_schedule.name,
-    status: getAssignmentStatus(assignment),
-  }))
-);
-
-/* ================== Columns ================== */
 const columns = computed(() =>
   enhancedAssignments.value.length
     ? generateColumns<any>(
         enhancedAssignments.value,
         {
           labels: {
-            assignable_type: "نوع الإسناد",
-            assignable_name: "الاسم",
-            work_schedule_name: "نظام الدوام",
-            starts_at: "تاريخ البداية",
-            ends_at: "تاريخ النهاية",
-            status: "الحالة",
-            action: "العمليات",
+            assignable_type:    'نوع الإسناد',
+            assignable_name:    'الاسم',
+            work_schedule_name: 'نظام الدوام',
+            starts_at:          'تاريخ البداية',
+            ends_at:            'تاريخ النهاية',
+            status:             'الحالة',
+            action:             'العمليات',
           },
-          exclude: [
-            "work_schedule",
-            "assignable",
-          ],
+          exclude: ['work_schedule', 'assignable'],
           columns: {
-            assignable_type: { filterable: true },
-            assignable_name: { filterable: true },
+            assignable_type:    { filterable: true },
+            assignable_name:    { filterable: true },
             work_schedule_name: { filterable: true },
-            starts_at: { type: "date", hidden:true },
-            ends_at: { type: "date", hidden:true },
-            status: { filterable: true },
-            action: { hideable: false },
+            starts_at:          { type: 'date', hidden: true },
+            ends_at:            { type: 'date', hidden: true },
+            status:             { filterable: true },
+            action:             { hideable: false },
           },
         },
         UButton
       )
     : []
-);
+)
 
-/* ================== Effects ================== */
+const tableMeta = {
+  class: {
+    tr: () => 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow',
+  },
+}
+
+/* ================== Lifecycle ================== */
+onMounted(() => fetchAssignments())
+
 watch(
   assignments,
-  (val) => {
-  console.log(assignments)
-    if (val.length) firstLoad.value = false;
-  },
+  (val) => { if (val?.length) firstLoad.value = false },
   { immediate: true }
-);
+)
 
 /* ================== Handlers ================== */
-const onPageChange = (p: number) => setPage(p);
-const onPageSizeChange = (s: number) => setPageSize(s);
-const onSearchGlobal = (val: string) => setSearch(val);
-const onSortingChange = (val: any[]) => (sorting.value = val);
-const onColumnFiltersChange = (val: any[]) => (columnFilters.value = val);
+const onSubmit = (_value: Partial<WorkScheduleAssignmentForm>) =>
+  submit(drawer.editingId.value, { ...drawer.formModel })
 
-/* ================== Form Management ================== */
-const editingId = ref<number | null>(null);
-const mode = computed(() => (editingId.value ? "edit" : "create"));
-const formModel = reactive<WorkScheduleAssignmentForm>(emptyWorkScheduleAssignmentForm());
-
-const openDrower = (payload: { title: string; row?: unknown }) => {
-  (document.activeElement as HTMLElement)?.blur();
-  open.value = !open.value;
-  titleDrower.value = payload.title;
-
-  if (payload.row && isWorkScheduleAssignmentRow(payload.row)) {
-    editingId.value = payload.row.id;
-    Object.assign(formModel, {
-      assignable_type: payload.row.assignable.type,
-      assignable_id: payload.row.assignable.id,
-      work_schedule_id: payload.row.work_schedule.id,
-      starts_at: payload.row.starts_at || null,
-      ends_at: payload.row.ends_at || null,
-    });
-  } else {
-    editingId.value = null;
-    Object.assign(formModel, emptyWorkScheduleAssignmentForm());
-  }
-};
-
-const formRef = ref<{ submit: () => void } | null>(null);
-
-const onSubmit = async (value: WorkScheduleAssignmentForm) => {
-  try {
-    const payload: Partial<WorkScheduleAssignmentForm> = { ...value };
-
-    // 🔒 عند التعديل: لا نرسل جهة الإسناد
-    if (editingId.value) {
-      delete payload.assignable_type;
-      delete payload.assignable_id;
-
-      await updateAssignment(editingId.value, payload);
-    } else {
-      await createAssignment(payload);
-    }
-
-    open.value = false;
-  } catch (error) {
-    console.error("Submit error:", error);
-  }
-};
-
-
-const onDeleteAssignmentHandler = async (id: number) => {
-  await deleteAssignment(id);
-};
+function submitForm() {
+  formRef.value?.submit()
+}
 </script>
 
 <template>
-  <!-- Loading أول تحميل فقط -->
-  <div
-    v-if="firstLoad && pending"
-    class="flex justify-center items-center py-20"
-  >
+  <!-- أول تحميل -->
+  <div v-if="firstLoad && loading" class="flex items-center justify-center py-20">
     <span class="text-muted text-lg">جارٍ التحميل...</span>
   </div>
 
+  <!-- الجدول -->
   <AppTable
     v-else
     :columns="columns"
     :data="enhancedAssignments"
-    :btn-create="true"
     :total="safePagination.total"
     :page="page"
-    :page-sizes="pageSizes"
+    :page-sizes="PAGE_SIZES"
     :page-size="pageSize"
-    :loading="pending"
-    :meta="meta"
+    :loading="loading"
+    :meta="tableMeta"
     :sorting="sorting"
     :global-filter="search"
     :column-filters="columnFilters"
+    :btn-create="true"
     title-btn-create="إضافة إسناد"
     title-btn-icon="material-symbols:assignment-add-outline-rounded"
     title-btn-edit="تعديل إسناد"
-    @update:page="onPageChange"
-    @update:page-size="onPageSizeChange"
-    @update:sorting="onSortingChange"
-    @update:global-filter="onSearchGlobal"
-    @update:column-filters="onColumnFiltersChange"
-    @delete:row="onDeleteAssignmentHandler"
-    @drower:open="openDrower"
-    @update:data="openDrower"
+    @update:page="setPage"
+    @update:page-size="setPageSize"
+    @update:sorting="sorting = $event"
+    @update:global-filter="setSearch"
+    @update:column-filters="columnFilters = $event"
+    @delete:row="remove"
+    @drower:open="drawer.open"
+    @update:data="drawer.open"
   />
 
+  <!-- Drawer -->
   <ClientOnly>
     <UDrawer
-      v-model:open="open"
-      :description="`إدارة إسناد أنظمة الدوام`"
+      v-model:open="drawer.isOpen.value"
       direction="left"
-      :title="titleDrower"
+      :title="drawer.title.value"
       :ui="{
-        body: 'drower space-y-5 pt-0',
-        header: 'hidden',
-        title: 'text-primary',
-        container: 'px-4 gap-y-10 drower',
+        body:    'drower space-y-5 pt-0',
+        header:  'hidden',
+        title:   'text-primary',
         overlay: 'bg-green-400/30',
-        content:
-          'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
+        content: 'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
       }"
     >
       <template #body>
+        <!-- Header -->
         <div class="flex items-center justify-end gap-2">
-          <h2 class="text-highlighted font-semibold">{{ titleDrower }}</h2>
-
+          <h2 class="text-highlighted font-semibold">{{ drawer.title.value }}</h2>
           <UIcon
-            v-if="editingId"
-            name="solar:pen-new-round-linear"
-            class="size-5"
-          />
-          <UIcon
-            v-else
-            name="ic:baseline-control-point-duplicate"
+            :name="drawer.mode.value === 'edit'
+              ? 'solar:pen-new-round-linear'
+              : 'ic:baseline-control-point-duplicate'"
             class="size-5"
           />
         </div>
 
-        <ClientOnly>
-          <FormsWorkScheduleAssignmentFrom
-            ref="formRef"
-            v-model="formModel"
-            :mode="mode"
-            @submit="onSubmit"
-            class="min-w-150 items-start"
-            :columns="1"
-          />
-        </ClientOnly>
+        <!-- Form -->
+        <FormsWorkScheduleAssignmentFrom
+          ref="formRef"
+          v-model="drawer.formModel"
+          :mode="drawer.mode.value"
+          :columns="1"
+          class="min-w-150 items-start"
+          @submit="onSubmit"
+        />
       </template>
 
       <template #footer>
@@ -270,15 +198,14 @@ const onDeleteAssignmentHandler = async (id: number) => {
           label="إرسال"
           color="neutral"
           class="justify-center"
-          @click="formRef?.submit()"
+          @click="submitForm()"
         />
-
         <UButton
           label="إغلاق"
           color="neutral"
           variant="outline"
           class="justify-center"
-          @click="open = false"
+          @click="drawer.close()"
         />
       </template>
     </UDrawer>
@@ -286,7 +213,5 @@ const onDeleteAssignmentHandler = async (id: number) => {
 </template>
 
 <style scoped>
-.ring-default {
-  --tw-ring-color: #00dc82 !important;
-}
+.ring-default { --tw-ring-color: #00dc82 !important; }
 </style>

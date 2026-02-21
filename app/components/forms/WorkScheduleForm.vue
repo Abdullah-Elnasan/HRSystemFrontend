@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { WorkScheduleForm } from "~/types/workSchedule";
 import {
-  emptyWorkScheduleForm,
+  // emptyWorkScheduleForm,
   createEmptyCustomDays,
-  transformFormToPayload,
+  // transformFormToPayload,
 } from "~/types/workSchedule";
+
+import { workScheduleSchema } from "~/schemas/work-schedule.schema";
 
 /**
  * =========================================================
@@ -35,8 +37,7 @@ const localForm = computed({
   get: () => props.modelValue,
   set: (val) => emit("update:modelValue", val),
 });
-console.log(localForm.value);
-console.log(props.modelValue);
+
 
 /* ================== Initialize Custom Days ================== */
 
@@ -61,7 +62,7 @@ watch(
       };
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // تأكد من وجود أيام مخصصة عند التبديل
@@ -70,15 +71,21 @@ watch(
   (useUniform) => {
     if (!useUniform) {
       const emptyDays = createEmptyCustomDays();
-      if (!localForm.value.custom_fixed_days || localForm.value.custom_fixed_days.length === 0) {
+      if (
+        !localForm.value.custom_fixed_days ||
+        localForm.value.custom_fixed_days.length === 0
+      ) {
         localForm.value.custom_fixed_days = emptyDays.fixed;
       }
-      if (!localForm.value.custom_flexible_days || localForm.value.custom_flexible_days.length === 0) {
+      if (
+        !localForm.value.custom_flexible_days ||
+        localForm.value.custom_flexible_days.length === 0
+      ) {
         localForm.value.custom_flexible_days = emptyDays.flexible;
       }
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 /* ================== Navigation ================== */
@@ -133,34 +140,51 @@ const steps = computed(() => [
 <template>
   <div class="space-y-6" dir="rtl">
     <!-- Step Indicators -->
-    <div class="flex  items-center justify-between">
-      <div v-for="(step, idx) in steps" :key="step.number" class="flex items-center flex-1">
+    <div class="flex items-center justify-between">
+      <div
+        v-for="(step, idx) in steps"
+        :key="step.number"
+        class="flex items-center flex-1"
+      >
         <!-- Step Circle -->
         <div class="flex items-center gap-3">
-
-
           <!-- Step Title (Hidden on mobile) -->
-          <span class="hidden sm:block text-sm font-medium" :class="{
-            'text-highlighted': currentStep >= step.number,
-            'text-muted': currentStep < step.number,
-          }">
+          <span
+            class="hidden sm:block text-sm font-medium"
+            :class="{
+              'text-highlighted': currentStep >= step.number,
+              'text-muted': currentStep < step.number,
+            }"
+          >
             {{ step.title }}
           </span>
 
-          <div class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all" :class="{
-            'bg-primary border-primary text-white': currentStep >= step.number,
-            'border-muted text-muted': currentStep < step.number,
-          }">
-            <UIcon v-if="currentStep > step.number" name="i-lucide-check" class="w-5 h-5" />
+          <div
+            class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all"
+            :class="{
+              'bg-primary border-primary text-white':
+                currentStep >= step.number,
+              'border-muted text-muted': currentStep < step.number,
+            }"
+          >
+            <UIcon
+              v-if="currentStep > step.number"
+              name="i-lucide-check"
+              class="w-5 h-5"
+            />
             <span v-else class="font-semibold text-sm">{{ step.number }}</span>
           </div>
         </div>
 
         <!-- Connector Line -->
-        <div v-if="idx < steps.length - 1" class="flex-1 h-0.5 mx-2 sm:mx-4 transition-all" :class="{
-          'bg-primary': currentStep > step.number,
-          'bg-muted': currentStep <= step.number,
-        }" />
+        <div
+          v-if="idx < steps.length - 1"
+          class="flex-1 h-0.5 mx-2 sm:mx-4 transition-all"
+          :class="{
+            'bg-primary': currentStep > step.number,
+            'bg-muted': currentStep <= step.number,
+          }"
+        />
       </div>
     </div>
 
@@ -212,9 +236,7 @@ const steps = computed(() => [
 
           <!-- Custom Flexible -->
           <FormsCustomFlexible
-            v-else-if="
-              !localForm.is_uniform && localForm.custom_flexible_days
-            "
+            v-else-if="!localForm.is_uniform && localForm.custom_flexible_days"
             v-model="localForm.custom_flexible_days"
           />
         </template>
@@ -227,7 +249,9 @@ const steps = computed(() => [
     </div>
 
     <!-- Navigation Buttons -->
-    <div class="flex items-center justify-between gap-3 pt-4 border-t border-default">
+    <div
+      class="flex items-center justify-between gap-3 pt-4 border-t border-default"
+    >
       <!-- Previous -->
       <UButton
         v-if="currentStep > 1"

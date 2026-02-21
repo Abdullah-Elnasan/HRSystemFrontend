@@ -164,19 +164,19 @@ const items = computed<NavigationMenuItem[][]>(() => [
       label: "إدارة الوصول",
       icon: "lucide:folder-tree",
       defaultOpen: false,
-          children: [
-            {
-              label: "إدارة مجموعات المستخدمين",
-              icon: "streamline-flex:user-collaborate-group-solid",
-              to: "/user-groups",
-            },
-            {
-              label: "الصلاحيات",
-              icon: "lucide:link",
-              to: "/access-controller/permissions",
-            },
-          ],
+      children: [
+        {
+          label: "إدارة مجموعات المستخدمين",
+          icon: "streamline-flex:user-collaborate-group-solid",
+          to: "/user-groups",
         },
+        {
+          label: "الصلاحيات",
+          icon: "lucide:link",
+          to: "/access-controller/permissions",
+        },
+      ],
+    },
     {
       label: "الحضور والانصراف",
       icon: "lucide:folder-tree",
@@ -202,7 +202,7 @@ const items = computed<NavigationMenuItem[][]>(() => [
             {
               label: "إسناد الدوام",
               icon: "lucide:link",
-              to: "/attendances/settings/manage-assign",
+              to: "/attendances/settings/work-schedules/manage-assign",
             },
           ],
         },

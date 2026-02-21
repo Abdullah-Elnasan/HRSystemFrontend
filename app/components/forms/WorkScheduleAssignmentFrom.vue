@@ -18,9 +18,12 @@ const emit = defineEmits<{
 }>();
 
 const model = useFormModel(toRef(props, "modelValue"), emit);
-
+const config = useRuntimeConfig();
+const { $api } = useNuxtApp();
 /* ================== Date Helpers ================== */
-const stringToCalendarDate = (dateString: string | null | undefined): CalendarDate => {
+const stringToCalendarDate = (
+  dateString: string | null | undefined,
+): CalendarDate => {
   if (dateString) {
     const [y, m, d] = dateString.split("-").map(Number);
     if (y && m && d) return new CalendarDate(y, m, d);
@@ -54,10 +57,10 @@ const fetchAssignables = async () => {
 
   const endpoint =
     model.value.assignable_type === "App\\Models\\Employee\\Employee"
-      ? "/api/_nuxt-api/employees/employees"
-      : "/api/branches/branches";
+      ? `${config.public.apiBase}/api/employees`
+      : `${config.public.apiBase}/api/branches`;
 
-  const res: any = await $fetch(endpoint);
+  const res: any = await $api(endpoint);
   loadingAssignables.value = false;
 
   return res.data ?? [];
@@ -70,10 +73,10 @@ const searchAssignables = async (q: string) => {
 
   const endpoint =
     model.value.assignable_type === "App\\Models\\Employee\\Employee"
-      ? "/api/_nuxt-api/employees/employees"
-      : "/api/branches/branches";
+      ? `${config.public.apiBase}/api/employees`
+      : `${config.public.apiBase}/api/branches`;
 
-  const res: any = await $fetch(endpoint, {
+  const res: any = await $api(endpoint, {
     params: { "filter[search]": q },
   });
 
@@ -83,7 +86,7 @@ const searchAssignables = async (q: string) => {
 
 const fetchWorkSchedules = async () => {
   loadingWorkSchedules.value = true;
-  const res: any = await $fetch("/api/work-schedules/work-schedules");
+  const res: any = await $api(`${config.public.apiBase}/api/work-schedules`);
   workScheduleItems.value = res.data ?? [];
   loadingWorkSchedules.value = false;
 };
@@ -112,7 +115,6 @@ const assignableTypeField: Field<WorkScheduleAssignmentForm> = {
   },
 };
 
-
 const assignableIdField = computed<Field<WorkScheduleAssignmentForm>>(() => ({
   name: "assignable_id",
   label: "الاسم",
@@ -122,7 +124,10 @@ const assignableIdField = computed<Field<WorkScheduleAssignmentForm>>(() => ({
   searchApi: searchAssignables,
   componentProps: {
     valueKey: "id",
-    labelKey: model.value.assignable_type === "App\\Models\\Employee\\Employee" ? 'full_name' : 'name_ar',
+    labelKey:
+      model.value.assignable_type === "App\\Models\\Employee\\Employee"
+        ? "full_name"
+        : "name_ar",
     placeholder: "اختر من القائمة",
     disabled: !model.value.assignable_type,
   },
@@ -135,7 +140,7 @@ const workScheduleIdField = computed<Field<WorkScheduleAssignmentForm>>(() => ({
   searchable: true,
   items: workScheduleItems.value,
   searchApi: async (q: string) => {
-    const res: any = await $fetch("/api/work-schedules/work-schedules", {
+    const res: any = await $api(`${config.public.apiBase}/api/work-schedules`, {
       params: { "filter[search]": q },
     });
     return res.data ?? [];
@@ -168,11 +173,7 @@ const fields = computed<Field<WorkScheduleAssignmentForm>[]>(() => {
 
   // في الإنشاء فقط
   if (props.mode !== "edit") {
-    return [
-      assignableTypeField,
-      assignableIdField.value,
-      ...baseFields,
-    ];
+    return [assignableTypeField, assignableIdField.value, ...baseFields];
   }
 
   // في التعديل
@@ -189,7 +190,7 @@ watch(
     if (!type) return;
 
     assignableItems.value = await fetchAssignables();
-  }
+  },
 );
 
 /* ================== Expose ================== */

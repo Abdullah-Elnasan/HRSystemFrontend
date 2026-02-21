@@ -4,7 +4,6 @@ import type { WorkSchedule, WorkScheduleForm } from '~/types/workSchedule'
 import { useWorkSchedules } from '~/composables/workSchedule/useWorkSchedules'
 import { useWorkScheduleDrawer } from '~/composables/workSchedule/useWorkScheduleDrawer'
 import { useWorkScheduleActions } from '~/composables/workSchedule/useWorkScheduleActions'
-
 const UButton = resolveComponent('UButton')
 
 definePageMeta({
