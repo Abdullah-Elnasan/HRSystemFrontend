@@ -1,120 +1,114 @@
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { useUserGroupStore } from '~/stores/userGroups/userGroups'
 import type { UserGroupForm, PermissionAssignForm } from '~/types/userGroups'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function useUserGroup() {
   const store = useUserGroupStore()
-  const toast = useToast()
+  const { userGroups, pagination, loading, error } = storeToRefs(store)
 
-  const list = usePaginatedList({
-    key: 'userGroups',
-    endpoint: '/api/user-groups/user-groups',
-    store: { setData: store.setUserGroups },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  async function fetchUserGroups(params?: Record<string, any>) {
-    try {
-      await store.fetchUserGroups(params)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب المجموعات',
-        color: 'error'
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchUserGroupById(id: number | string) {
-    try {
-      return await store.fetchUserGroupById(id)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب المجموعة',
-        color: 'error'
-      })
-      throw err
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  async function createUserGroup(payload: UserGroupForm | FormData) {
-    try {
-      return await store.createUserGroup(payload)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء المجموعة',
-        color: 'error'
-      })
-      throw err
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchUserGroups = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchUserGroups(params ?? buildParams(), signal)
   }
 
-  async function updateUserGroup(id: number, payload: Partial<UserGroupForm> | FormData) {
-    try {
-      return await store.updateUserGroup(id, payload)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل المجموعة',
-        color: 'error'
-      })
-      throw err
-    }
+  const debouncedFetchUserGroups = useDebounceFn(fetchUserGroups, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchUserGroups()
   }
 
-  async function deleteUserGroup(id: number) {
-    try {
-      await store.deleteUserGroup(id)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف المجموعة',
-        color: 'error'
-      })
-      throw err
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchUserGroups()
   }
 
-  async function assignPermissions(payload: PermissionAssignForm) {
-    try {
-      return await store.assignPermissions(payload)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إسناد الصلاحيات',
-        color: 'error'
-      })
-      throw err
-    }
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchUserGroups()
   }
 
-  async function removePermissions(payload: PermissionAssignForm) {
-    try {
-      return await store.removePermissions(payload)
-    } catch (err: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف الصلاحيات',
-        color: 'error'
-      })
-      throw err
-    }
-  }
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchUserGroupById = (id: number | string) =>
+    store.fetchUserGroupById(id)
+
+  const createUserGroup = (payload: UserGroupForm | FormData) =>
+    store.createUserGroup(payload)
+
+  const updateUserGroup = (id: number, payload: Partial<UserGroupForm> | FormData) =>
+    store.updateUserGroup(id, payload)
+
+  const deleteUserGroup = (id: number) =>
+    store.deleteUserGroup(id)
+
+  // ─── Permissions ──────────────────────────────────────
+  const assignPermissions = (payload: PermissionAssignForm) =>
+    store.assignPermissions(payload)
+
+  const removePermissions = (payload: PermissionAssignForm) =>
+    store.removePermissions(payload)
 
   return {
-    ...list,
-    data: computed(() => store.userGroups),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    // State
+    userGroups,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
+
+    // Actions
     fetchUserGroups,
+    debouncedFetchUserGroups,
     fetchUserGroupById,
     createUserGroup,
     updateUserGroup,
     deleteUserGroup,
+
+    // Permissions
     assignPermissions,
     removePermissions,
+
+    // Utilities
     clearError: store.clearError,
   }
 }

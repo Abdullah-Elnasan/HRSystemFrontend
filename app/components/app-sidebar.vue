@@ -63,16 +63,16 @@ import { fa } from "zod/locales";
 import { useAttendancePending } from "~/composables/attendances/useAttendancePending";
 import { useAuthStore } from "~/stores/auth/auth";
 
-const { data, pagination } = await useAttendancePending();
+const { records, pagination, fetchRecords } = useAttendancePending();
 const safePagination = computed(() => ({
   total: pagination.value?.total ?? 0,
 }));
-console.log(safePagination);
-console.log(safePagination.value.total);
+// console.log(safePagination);
+// console.log(safePagination.value.total);
 
 // Get user data from auth store
 const authStore = useAuthStore();
-console.log(authStore.user);
+// console.log(authStore.user);
 
 // Computed properties for user name and avatar
 const userName = computed(() => {
@@ -97,11 +97,11 @@ const userAvatar = computed(() => {
     return imageUrl;
   }
   // Check if user has avatar property
-  console.log(authStore.user);
+  // console.log(authStore.user);
   if (authStore.user?.employee && authStore.user.employee?.image) {
     const avatarUrl = authStore.user.employee?.image;
-    console.log("avatarUrl");
-    console.log(avatarUrl);
+    // console.log("avatarUrl");
+    // console.log(avatarUrl);
     // If avatar is a relative path, prepend API base URL
     if (
       avatarUrl &&
@@ -373,4 +373,8 @@ const items = computed<NavigationMenuItem[][]>(() => [
   //   },
   // ],
 ]);
+
+onMounted(async () => {
+  await fetchRecords();
+});
 </script>

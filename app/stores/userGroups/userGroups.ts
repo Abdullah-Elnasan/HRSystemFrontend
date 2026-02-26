@@ -1,246 +1,182 @@
 import { defineStore } from 'pinia'
+import { parseError } from '~/utils/parseError'
 import type { UserGroup, UserGroupForm, PermissionAssignForm } from '~/types/userGroups'
-import type { PaginatedResponse } from '~/types/table'
-import { fetchList } from '~/service/useAsyncData'
-import { createResource } from '~/service/createResource'
-import { updateResource } from '~/service/updateResource'
-import { assignResource, removeResource } from '~/service/assignResource'
+import type { apiResponse } from '~/types/table'
+import type { PaginationMeta } from '~/types/table'
 
-// function getErrorMessage(err: any): string {
-//   if (err?.data?.errors && typeof err.data.errors === 'object') {
-//     return Object.values(err.data.errors).flat().join(', ')
-//   }
-//   return err?.data?.messageAr ?? err?.data?.message ?? err?.message ?? 'حدث خطأ غير متوقع'
-// }
+interface UserGroupsState {
+  userGroups: UserGroup[]
+  pagination: PaginationMeta | null
+  loading:    boolean
+  error:      string | null
+}
 
 export const useUserGroupStore = defineStore('userGroups', {
-  state: () => ({
-    userGroups: [] as UserGroup[],
-    pagination: {
-      current_page: 1,
-      per_page: 10,
-      total: 0,
-      last_page: 1,
-    },
-    loading: false,
-    error: null as string | null,
+  state: (): UserGroupsState => ({
+    userGroups: [],
+    pagination: null,
+    loading:    false,
+    error:      null,
   }),
 
-  getters: {
-    getUserGroups: (state) => state.userGroups,
-    getUserGroupById: (state) => (id: number | string) =>
-      state.userGroups.find((e) => e.id === id),
-    isLoading: (state) => state.loading,
-  },
-
   actions: {
-    /* ================== Fetch List ================== */
-    async fetchUserGroups(params?: Record<string, any>) {
-      this.loading = true
-      this.error = null
-      const toast = useToast()
+    _setLoading(value: boolean) { this.loading = value },
+    _setError(message: string | null) { this.error = message },
+
+    async fetchUserGroups(params?: Record<string, any>, signal?: AbortSignal) {
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        const response = await fetchList<PaginatedResponse<UserGroup>>({
-          endpoint: '/api/user-groups',
-          page: params?.page ?? 1,
-          perPage: params?.per_page ?? 10,
-          search: params?.filter?.search,
-        })
-
+        const response = await $api<apiResponse<UserGroup[]>>(
+          `${config.public.apiBase}/api/user-groups`,
+          { query: params, signal }
+        )
         this.userGroups = response.data
         this.pagination = response.pagination
-
-        if ((response as any).messageAr) {
-          toast.add({ title: (response as any).messageAr, color: 'success' })
-        }
-
-        return response
-      } catch (err: any) {
-        handleApiError(err, toast)
-        // this.error = getErrorMessage(err)
-        throw err
+      } catch (error: unknown) {
+        if ((error as Error).name === 'AbortError') return
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false
+        this._setLoading(false)
       }
     },
 
-    /* ================== Fetch Single ================== */
     async fetchUserGroupById(id: number | string) {
-      this.loading = true
-      this.error = null
-      const toast = useToast()
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        const response = await fetchList<{ data: UserGroup }>({
-          endpoint: `/api/user-groups/${id}`,
-        })
-
-        const group = response.data
-        const index = this.userGroups.findIndex((e) => e.id === group.id)
-        if (index !== -1) this.userGroups[index] = group
-
-        if ((response as any).messageAr) {
-          toast.add({ title: (response as any).messageAr, color: 'success' })
-        }
-
-        return group
-      } catch (err: any) {
-        handleApiError(err, toast)
-        // this.error = getErrorMessage(err)
-        throw err
+        const response = await $api<apiResponse<UserGroup>>(
+          `${config.public.apiBase}/api/user-groups/${id}`
+        )
+        const index = this.userGroups.findIndex(g => g.id === response.data.id)
+        if (index !== -1) this.userGroups[index] = response.data
+        return response.data
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false
+        this._setLoading(false)
       }
     },
 
-    /* ================== Create ================== */
     async createUserGroup(payload: UserGroupForm | FormData) {
-      this.loading = true
-      this.error = null
-      const toast = useToast()
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
+
       try {
-        return await createResource<UserGroup>({
-          endpoint: '/api/user-groups/user-groups',
-          payload,
-          toast: useToast(),
-          onSuccess: (data) => {
-            this.userGroups.unshift(data)
-            this.pagination.total += 1
-          },
-        })
-      } catch (err: any) {
-        handleApiError(err, toast)
-        // this.error = getErrorMessage(err)
-        throw err
+        const response = await $api<apiResponse<UserGroup>>(
+          `${config.public.apiBase}/api/user-groups`,
+          { method: 'POST', body: payload }
+        )
+        this.userGroups.unshift(response.data)
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false
+        this._setLoading(false)
       }
     },
 
-    /* ================== Update ================== */
     async updateUserGroup(id: number, payload: Partial<UserGroupForm> | FormData) {
-      this.loading = true
-      this.error = null
-      const toast = useToast()
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
+
       try {
-        return await updateResource<UserGroup>({
-          endpoint: `/api/user-groups/${id}`,
-          payload,
-          toast: useToast(),
-          onSuccess: (data) => {
-            const index = this.userGroups.findIndex((e) => e.id === data.id)
-            if (index !== -1) this.userGroups[index] = data
-          },
-        })
-      } catch (err: any) {
-        handleApiError(err, toast)
-        // this.error = getErrorMessage(err)
-        throw err
+        const response = await $api<apiResponse<UserGroup>>(
+          `${config.public.apiBase}/api/user-groups/${id}`,
+          { method: 'PUT', body: payload }
+        )
+        const index = this.userGroups.findIndex(g => g.id === id)
+        if (index !== -1) this.userGroups[index] = response.data
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false
+        this._setLoading(false)
       }
     },
 
-    /* ================== Delete ================== */
     async deleteUserGroup(id: number) {
-      this.loading = true
-      this.error = null
-      const toast = useToast()
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
 
-      const index = this.userGroups.findIndex((e) => e.id === id)
-      const backup = index !== -1 ? this.userGroups[index] : null
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        if (index !== -1) {
-          this.userGroups.splice(index, 1)
-          this.pagination.total -= 1
-        }
-
-        await $fetch(`/api/user-groups/${id}`, { method: 'DELETE' })
-        toast.add({ title: 'تم حذف المجموعة بنجاح', color: 'success' })
-        return true
-      } catch (err: any) {
-        if (backup && index !== -1) {
-          this.userGroups.splice(index, 0, backup)
-          this.pagination.total += 1
-        }
-        // this.error = getErrorMessage(err)
-        handleApiError(err, toast)
-        // toast.add({ title: this.error, color: 'error' })
-        throw err
+        const response = await $api<apiResponse<null>>(
+          `${config.public.apiBase}/api/user-groups/${id}`,
+          { method: 'DELETE' }
+        )
+        this.userGroups = this.userGroups.filter(g => g.id !== id)
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false
+        this._setLoading(false)
       }
     },
 
-    clearError() {
-      this.error = null
-    },
-
-    setUserGroups(payload: PaginatedResponse<UserGroup>) {
-      this.userGroups = payload.data
-      this.pagination = payload.pagination
-    },
-
-    addUserGroup(group: UserGroup) {
-      this.userGroups.unshift(group)
-      this.pagination.total += 1
-    },
-
-
-    /* ================== Assign Permissions ================== */
     async assignPermissions(payload: PermissionAssignForm) {
-      this.loading = true
-      this.error = null
-      const toast = useToast()
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        return await assignResource<any>({
-          endpoint: '/api/user-groups/assign',
-          payload,
-          toast,
-          successMessage: 'تم إسناد الصلاحيات بنجاح',
-          onSuccess: () => {
-          },
-        })
-      } catch (err: any) {
-        throw err
+        const response = await $api<apiResponse<any>>(
+          `${config.public.apiBase}/api/user-groups/assign`,
+          { method: 'POST', body: payload }
+        )
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false
+        this._setLoading(false)
       }
     },
 
-    /* ================== Remove Permissions ================== */
     async removePermissions(payload: PermissionAssignForm) {
-      this.loading = true
-      this.error = null
-      const toast = useToast()
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        return await removeResource<any>({
-          endpoint: '/api/user-groups/remove',
-          payload,
-          toast,
-          successMessage: 'تم حذف الصلاحيات بنجاح',
-          onSuccess: () => {
-            // يمكنك تحديث البيانات هنا إذا لزم الأمر
-          },
-        })
-      } catch (err: any) {
-        // handleApiError(err, toast)
-        throw err
+        const response = await $api<apiResponse<any>>(
+          `${config.public.apiBase}/api/user-groups/remove`,
+          { method: 'POST', body: payload }
+        )
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false
+        this._setLoading(false)
       }
     },
 
-    removeUserGroup(id: number | string) {
-      const index = this.userGroups.findIndex((e) => e.id === id)
-      if (index !== -1) {
-        this.userGroups.splice(index, 1)
-        this.pagination.total -= 1
-      }
-    },
+    clearError() { this.error = null },
   },
 })
