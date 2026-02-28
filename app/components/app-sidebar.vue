@@ -271,7 +271,7 @@ const items = computed<NavigationMenuItem[][]>(() => [
             {
               label: "إسناد الرواتب",
               icon: "lucide:link",
-              to: "/payroll/settings/manage-assign",
+              to: "/payroll/settings/payroll-systems/manage-assign",
             },
           ],
         },

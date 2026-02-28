@@ -58,6 +58,7 @@ const props = withDefaults(
   }>(),
   {
     searchTable: true,
+    btnCreate: true,
   },
 );
 

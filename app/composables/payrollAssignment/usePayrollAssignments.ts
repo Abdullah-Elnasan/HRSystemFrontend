@@ -1,101 +1,97 @@
-// ~/composables/payroll-assignments/usePayrollAssignments.ts
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { usePayrollAssignmentsStore } from '~/stores/payrollAssignments/payrollAssignments'
 import type { PayrollAssignmentForm } from '~/types/payrollAssignments'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function usePayrollAssignments() {
   const store = usePayrollAssignmentsStore()
-  const toast = useToast()
+  const { assignments, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'payroll-assignments',
-    endpoint: '/api/payroll-assignments/payroll-assignments',
-    store: {
-      setData: store.setAssignments,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchAssignments(params?: Record<string, any>) {
-    try {
-      await store.fetchAssignments(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الإسنادات',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchAssignmentById(id: number | string) {
-    try {
-      return await store.fetchAssignmentById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الإسناد',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  /* ================== Create ================== */
-  async function createAssignment(payload: PayrollAssignmentForm) {
-    try {
-      return await store.createAssignment(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء الإسناد',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchAssignments = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchAssignments(params ?? buildParams(), signal)
   }
 
-  /* ================== Update ================== */
-  async function updateAssignment(id: number, payload: Partial<PayrollAssignmentForm>) {
-    try {
-      return await store.updateAssignment(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل الإسناد',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchAssignments = useDebounceFn(fetchAssignments, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchAssignments()
   }
 
-  /* ================== Delete ================== */
-  async function deleteAssignment(id: number) {
-    try {
-      await store.deleteAssignment(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف الإسناد',
-        color: 'error',
-      })
-      throw error
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchAssignments()
   }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchAssignments()
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchAssignmentById = (id: number | string) =>
+    store.fetchAssignmentById(id)
+
+  const createAssignment = (payload: PayrollAssignmentForm | FormData) =>
+    store.createAssignment(payload)
+
+  const updateAssignment = (id: number, payload: Partial<PayrollAssignmentForm> | FormData) =>
+    store.updateAssignment(id, payload)
+
+  const deleteAssignment = (id: number) =>
+    store.deleteAssignment(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.assignments),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    assignments,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchAssignments,
+    debouncedFetchAssignments,
     fetchAssignmentById,
     createAssignment,
     updateAssignment,

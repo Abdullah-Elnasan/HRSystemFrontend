@@ -1,101 +1,97 @@
-// ~/composables/payroll-systems/usePayrollSystems.ts
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { usePayrollSystemsStore } from '~/stores/payrollSystem/payrollSystem'
 import type { PayrollSystemForm } from '~/types/payrollSystem'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function usePayrollSystems() {
   const store = usePayrollSystemsStore()
-  const toast = useToast()
+  const { payrollSystems, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'payroll-systems',
-    endpoint: '/api/payroll-systems/payroll-systems',
-    store: {
-      setData: store.setPayrollSystems,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchPayrollSystems(params?: Record<string, any>) {
-    try {
-      await store.fetchPayrollSystems(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب أنظمة الرواتب',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchPayrollSystemById(id: number | string) {
-    try {
-      return await store.fetchPayrollSystemById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب نظام الرواتب',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  /* ================== Create ================== */
-  async function createPayrollSystem(payload: PayrollSystemForm) {
-    try {
-      return await store.createPayrollSystem(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء نظام الرواتب',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchPayrollSystems = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchPayrollSystems(params ?? buildParams(), signal)
   }
 
-  /* ================== Update ================== */
-  async function updatePayrollSystem(id: number, payload: Partial<PayrollSystemForm>) {
-    try {
-      return await store.updatePayrollSystem(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل نظام الرواتب',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchPayrollSystems = useDebounceFn(fetchPayrollSystems, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchPayrollSystems()
   }
 
-  /* ================== Delete ================== */
-  async function deletePayrollSystem(id: number) {
-    try {
-      await store.deletePayrollSystem(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف نظام الرواتب',
-        color: 'error',
-      })
-      throw error
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchPayrollSystems()
   }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchPayrollSystems()
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchPayrollSystemById = (id: number | string) =>
+    store.fetchPayrollSystemById(id)
+
+  const createPayrollSystem = (payload: PayrollSystemForm | FormData) =>
+    store.createPayrollSystem(payload)
+
+  const updatePayrollSystem = (id: number, payload: Partial<PayrollSystemForm> | FormData) =>
+    store.updatePayrollSystem(id, payload)
+
+  const deletePayrollSystem = (id: number) =>
+    store.deletePayrollSystem(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.payrollSystems),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    payrollSystems,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchPayrollSystems,
+    debouncedFetchPayrollSystems,
     fetchPayrollSystemById,
     createPayrollSystem,
     updatePayrollSystem,

@@ -19,6 +19,9 @@ const emit = defineEmits<{
 }>();
 
 const model = useFormModel(toRef(props, "modelValue"), emit);
+const config = useRuntimeConfig();
+const { $api } = useNuxtApp();
+
 
 /* ================== Date Helpers ================== */
 const stringToCalendarDate = (
@@ -65,10 +68,10 @@ const fetchAssignables = async () => {
 
   const endpoint =
     model.value.assignable_type === "App\\Models\\Employee\\Employee"
-      ? "/api/_nuxt-api/employees/employees"
-      : "/api/branches/branches";
+      ? `${config.public.apiBase}/api/employees`
+      : `${config.public.apiBase}/api/branches`;
 
-  const res: any = await $fetch(endpoint);
+  const res: any = await $api(endpoint);
   loadingAssignables.value = false;
 
   return res.data ?? [];
@@ -81,8 +84,8 @@ const searchAssignables = async (q: string) => {
 
   const endpoint =
     model.value.assignable_type === "App\\Models\\Employee\\Employee"
-      ? "/api/_nuxt-api/employees/employees"
-      : "/api/branches/branches";
+      ? `${config.public.apiBase}/api/employees`
+      : `${config.public.apiBase}/api/branches`;
 
   const res: any = await $fetch(endpoint, {
     params: { "filter[search]": q },
@@ -94,7 +97,7 @@ const searchAssignables = async (q: string) => {
 
 const fetchPayrollSystems = async () => {
   loadingPayrollSystems.value = true;
-  const res: any = await $fetch("/api/payroll-systems/payroll-systems");
+  const res: any = await $api(`${config.public.apiBase}/api/payroll-systems`);
   payrollSystemItems.value = res.data ?? [];
   loadingPayrollSystems.value = false;
 };
@@ -148,7 +151,7 @@ const payrollSystemIdField = computed<Field<PayrollAssignmentForm>>(() => ({
   searchable: true,
   items: payrollSystemItems.value,
   searchApi: async (q: string) => {
-    const res: any = await $fetch("/api/payroll-systems/payroll-systems", {
+    const res: any = await $api(`${config.public.apiBase}/api/payroll-systems`, {
       params: { "filter[search]": q },
     });
     return res.data ?? [];

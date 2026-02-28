@@ -1,191 +1,140 @@
-// ~/stores/payroll-systems/payroll-systems.ts
-import { defineStore } from "pinia";
-import type { PayrollSystem, PayrollSystemForm } from "~/types/payrollSystem";
-import type { PaginatedResponse } from "~/types/table";
-import { fetchList } from "~/service/useAsyncData";
-import { createResource } from "~/service/createResource";
-import { updateResource } from "~/service/updateResource";
+import { defineStore } from 'pinia'
+import { parseError } from '~/utils/parseError'
+import type { PayrollSystem, PayrollSystemForm } from '~/types/payrollSystem'
+import type { apiResponse } from '~/types/table';
+import type { PaginationMeta } from '~/types/table'
 
-export const usePayrollSystemsStore = defineStore("payrollSystems", {
-  state: () => ({
-    payrollSystems: [] as PayrollSystem[],
-    pagination: {
-      current_page: 1,
-      per_page: 10,
-      total: 0,
-      last_page: 1,
-    },
+interface PayrollSystemsState {
+  payrollSystems: PayrollSystem[]
+  pagination: PaginationMeta | null
+  loading: boolean
+  error: string | null
+}
+
+export const usePayrollSystemsStore = defineStore('payrollSystems', {
+  state: (): PayrollSystemsState => ({
+    payrollSystems: [],
+    pagination: null,
     loading: false,
-    error: null as string | null,
+    error: null,
   }),
 
-  getters: {
-    getPayrollSystems: (state) => state.payrollSystems,
-    getPayrollSystemById: (state) => (id: number | string) =>
-      state.payrollSystems.find((p) => p.id === id),
-    isLoading: (state) => state.loading,
-  },
-
   actions: {
-    /* ================== Fetch Payroll Systems (Paginated) ================== */
-    async fetchPayrollSystems(params?: Record<string, any>) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
+    _setLoading(value: boolean) { this.loading = value },
+    _setError(message: string | null) { this.error = message },
+
+    async fetchPayrollSystems(params?: Record<string, any>, signal?: AbortSignal) {
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        const response = await fetchList<PaginatedResponse<PayrollSystem>>({
-          endpoint: '/api/payroll-systems/payroll-systems',
-          page: params?.page ?? 1,
-          perPage: params?.per_page ?? 10,
-          search: params?.filter?.search,
-        });
-
-        this.payrollSystems = response.data;
-        this.pagination = response.pagination;
-
-        if ((response as any).messageAr) {
-          toast.add({ title: (response as any).messageAr, color: 'success' });
-        }
-
-        return response;
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
+        const response = await $api<apiResponse<PayrollSystem[]>>(
+          `${config.public.apiBase}/api/payroll-systems`,
+          { query: params, signal }
+        )
+        this.payrollSystems = response.data
+        this.pagination = response.pagination
+      } catch (error: unknown) {
+        if ((error as Error).name === 'AbortError') return
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false;
+        this._setLoading(false)
       }
     },
 
-    /* ================== Fetch Single Payroll System ================== */
     async fetchPayrollSystemById(id: number | string) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        const response = await fetchList<{ data: PayrollSystem }>({
-          endpoint: `/api/payroll-systems/${id}`,
-        });
-
-        const payrollSystem = response.data;
-        const index = this.payrollSystems.findIndex((p) => p.id === payrollSystem.id);
-        if (index !== -1) this.payrollSystems[index] = payrollSystem;
-
-        if ((response as any).messageAr) {
-          toast.add({ title: (response as any).messageAr, color: 'success' });
-        }
-
-        return payrollSystem;
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
+        const response = await $api<apiResponse<PayrollSystem>>(
+          `${config.public.apiBase}/api/payroll-systems/${id}`
+        )
+        const index = this.payrollSystems.findIndex(p => p.id === response.data.id)
+        if (index !== -1) this.payrollSystems[index] = response.data
+        return response.data
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false;
+        this._setLoading(false)
       }
     },
 
-    /* ================== Create Payroll System ================== */
     async createPayrollSystem(payload: PayrollSystemForm | FormData) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        return await createResource<PayrollSystem>({
-          endpoint: '/api/payroll-systems/payroll-systems',
-          payload,
-          toast: useToast(),
-          onSuccess: (data) => {
-            this.payrollSystems.unshift(data);
-            this.pagination.total += 1;
-          },
-        });
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
+        const response = await $api<apiResponse<PayrollSystem>>(
+          `${config.public.apiBase}/api/payroll-systems`,
+          { method: 'POST', body: payload }
+        )
+        this.payrollSystems.unshift(response.data)
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false;
+        this._setLoading(false)
       }
     },
 
-    /* ================== Update Payroll System ================== */
     async updatePayrollSystem(id: number, payload: Partial<PayrollSystemForm> | FormData) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        return await updateResource<PayrollSystem>({
-          endpoint: `/api/payroll-systems/${id}`,
-          payload,
-          toast: useToast(),
-          onSuccess: (data) => {
-            const index = this.payrollSystems.findIndex((p) => p.id === data.id);
-            if (index !== -1) this.payrollSystems[index] = data;
-          },
-        });
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
+        const response = await $api<apiResponse<PayrollSystem>>(
+          `${config.public.apiBase}/api/payroll-systems/${id}`,
+          { method: 'PUT', body: payload }
+        )
+        const index = this.payrollSystems.findIndex(p => p.id === id)
+        if (index !== -1) this.payrollSystems[index] = response.data
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false;
+        this._setLoading(false)
       }
     },
 
-    /* ================== Delete Payroll System ================== */
     async deletePayrollSystem(id: number) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
+      const config = useRuntimeConfig()
+      const { $api } = useNuxtApp()
 
-      const index = this.payrollSystems.findIndex((p) => p.id === id);
-      const backup = index !== -1 ? this.payrollSystems[index] : null;
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        if (index !== -1) {
-          this.payrollSystems.splice(index, 1);
-          this.pagination.total -= 1;
-        }
-
-        await $fetch(`/api/payroll-systems/${id}`, { method: 'DELETE' });
-
-        toast.add({ title: 'تم حذف نظام الرواتب بنجاح', color: 'success' });
-        return true;
-      } catch (err: any) {
-        if (backup && index !== -1) {
-          this.payrollSystems.splice(index, 0, backup);
-          this.pagination.total += 1;
-        }
-
-        handleApiError(err, toast);
-        throw err;
+        const response = await $api<apiResponse<null>>(
+          `${config.public.apiBase}/api/payroll-systems/${id}`,
+          { method: 'DELETE' }
+        )
+        this.payrollSystems = this.payrollSystems.filter(p => p.id !== id)
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false;
+        this._setLoading(false)
       }
     },
 
-    /* ================== Local State Management ================== */
-    setPayrollSystems(payload: PaginatedResponse<PayrollSystem>) {
-      this.payrollSystems = payload.data;
-      this.pagination = payload.pagination;
-    },
-
-    addPayrollSystem(payrollSystem: PayrollSystem) {
-      this.payrollSystems.unshift(payrollSystem);
-      this.pagination.total += 1;
-    },
-
-    removePayrollSystem(id: number | string) {
-      const index = this.payrollSystems.findIndex((p) => p.id === id);
-      if (index !== -1) {
-        this.payrollSystems.splice(index, 1);
-        this.pagination.total -= 1;
-      }
-    },
-
-    clearError() {
-      this.error = null;
-    },
+    clearError() { this.error = null },
   },
-});
+})
