@@ -17,7 +17,8 @@ const emit = defineEmits<{
 /* ================== Composables ================== */
 const { assignPermissions, removePermissions, loading } = useUserGroup();
 const toast = useToast();
-
+const config = useRuntimeConfig();
+const { $api } = useNuxtApp();
 /* ================== State ================== */
 const loadingUserGroups = ref(false);
 
@@ -36,7 +37,7 @@ const baseFields: Field<typeof formData.value>[] = [
     items: [],
     searchable: true,
     searchApi: async (q: string) => {
-      const res: any = await $fetch("/api/user-groups/user-groups", {
+      const res: any = await $api(`${config.public.apiBase}/api/user-groups`, {
         params: {
           "filter[search]": q,
         },
@@ -75,7 +76,7 @@ const fields = ref<Field<typeof formData.value>[]>(baseFields);
 const fetchUserGroups = async () => {
   loadingUserGroups.value = true;
   try {
-    const res: any = await $fetch("/api/user-groups/user-groups");
+    const res: any = await $api(`${config.public.apiBase}/api/user-groups`);
     const field = baseFields.find((f) => f.name === "user_group_id");
     if (field) {
       field.items = [...res.data];

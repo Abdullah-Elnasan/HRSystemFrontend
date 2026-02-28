@@ -1,105 +1,120 @@
-// ~/composables/attendance-today/useAttendanceToday.ts
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { useAttendanceTodayStore } from '~/stores/attendances/today/attendancesToday'
-import type { AttendanceTodayForm } from '~/types/attendanceToday'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function useAttendanceToday() {
   const store = useAttendanceTodayStore()
-  const toast = useToast()
+  const { records, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'attendance-today',
-    endpoint: '/api/attendances-today/attendances-today',
-    store: {
-      setData: store.setRecords,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchRecords(params?: Record<string, any>) {
-    try {
-      await store.fetchRecords(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجلات الحضور',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchRecordById(id: number | string) {
-    try {
-      return await store.fetchRecordById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجل الحضور',
-        color: 'error',
-      })
-      throw error
+  // ─── Active Filters ───────────────────────────────────
+  const activeFilters = reactive<Record<string, any>>({})
+
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams(extra?: Record<string, any>) {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
+      ...activeFilters,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    if (extra) {
+      Object.entries(extra).forEach(([key, val]) => {
+        if (val === null || val === undefined) {
+          delete params[key]
+        } else {
+          params[key] = val
+        }
+      })
+    }
+
+    return params
   }
 
-  /* ================== Create ================== */
-  // async function createRecord(payload: AttendanceTodayForm) {
-  //   try {
-  //     return await store.createRecord(payload)
-  //   } catch (error: any) {
-  //     toast.add({
-  //       title: 'خطأ',
-  //       description: store.error ?? 'فشل في إنشاء سجل الحضور',
-  //       color: 'error',
-  //     })
-  //     throw error
-  //   }
-  // }
-
-  /* ================== Update ================== */
-  // async function updateRecord(id: number, payload: Partial<AttendanceTodayForm>) {
-  //   try {
-  //     return await store.updateRecord(id, payload)
-  //   } catch (error: any) {
-  //     toast.add({
-  //       title: 'خطأ',
-  //       description: store.error ?? 'فشل في تعديل سجل الحضور',
-  //       color: 'error',
-  //     })
-  //     throw error
-  //   }
-  // }
-
-  /* ================== Delete ================== */
-  async function deleteRecord(id: number) {
-    try {
-      await store.deleteRecord(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف سجل الحضور',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchRecords = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchRecords(params ?? buildParams(), signal)
   }
+
+  const debouncedFetchRecords = useDebounceFn(fetchRecords, 500)
+
+  // ─── Refetch مع فلاتر جديدة ───────────────────────────
+  function refetch(newFilters: Record<string, any>) {
+    Object.entries(newFilters).forEach(([key, val]) => {
+      if (val === null || val === undefined) {
+        delete activeFilters[key]
+      } else {
+        activeFilters[key] = val
+      }
+    })
+    page.value = 1
+    return fetchRecords(buildParams())
+  }
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchRecords(buildParams())
+  }
+
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchRecords(buildParams())
+  }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchRecords(buildParams())
+  }
+
+  // ─── Actions ──────────────────────────────────────────
+  const fetchRecordById = (id: number | string) =>
+    store.fetchRecordById(id)
+
+  const deleteRecord = (id: number) =>
+    store.deleteRecord(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.records),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    records,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchRecords,
+    debouncedFetchRecords,
     fetchRecordById,
-    // createRecord,
-    // updateRecord,
     deleteRecord,
+    refetch,
 
     // Utilities
     clearError: store.clearError,

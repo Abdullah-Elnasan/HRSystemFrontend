@@ -2,26 +2,26 @@
 
 
 @font-face {
-  font-family: "Tajawal-ExtraBold";
-  src: url("/fonts/Tajawal/Tajawal-ExtraBold.ttf") format("truetype");
+  font-family: "Zain-ExtraBold";
+  src: url("/fonts/Zain/Zain-ExtraBold.ttf") format("truetype");
   font-weight: 800; /* ExtraBold */
   font-style: normal;
   font-display: swap;
 }
 
-.TajawalExtraBold {
-  font-family: "Tajawal-ExtraBold", sans-serif !important;
+.ZainExtraBold {
+  font-family: "Zain-ExtraBold", sans-serif !important;
 }
 @font-face {
-  font-family: "Tajawal-Medium";
-  src: url("/fonts/Tajawal/Tajawal-Medium.ttf") format("truetype");
+  font-family: "Zain-Medium";
+  src: url("/fonts/Zain/Zain-Regular.ttf") format("truetype");
   font-weight: 800; /* ExtraBold */
   font-style: normal;
   font-display: swap;
 }
 
-.TajawalMedium {
-  font-family: "Tajawal-Medium", sans-serif !important;
+.ZainMedium {
+  font-family: "Zain-Medium", sans-serif !important;
 }
 @font-face {
   font-family: "Tajawal-ExtraBold";

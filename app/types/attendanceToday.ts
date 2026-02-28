@@ -85,13 +85,13 @@ export const emptyAttendanceTodayForm = (): AttendanceTodayForm => ({
 /**
  * API Response
  */
-export type AttendanceTodayApiResponse<T = AttendanceToday[]> = {
-  success: boolean;
-  messageAr: string;
-  messageEn: string;
-  data: T;
-  pagination: PaginationMeta;
-};
+// export type AttendanceTodayApiResponse<T = AttendanceToday[]> = {
+//   success: boolean;
+//   messageAr: string;
+//   messageEn: string;
+//   data: T;
+//   pagination: PaginationMeta;
+// };
 
 /**
  * Row Type

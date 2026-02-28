@@ -1,60 +1,87 @@
-// ~/composables/permissions/usePermissions.ts
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { usePermissionsStore } from '~/stores/permissions/permissions'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function usePermissions() {
   const store = usePermissionsStore()
-  const toast = useToast()
+  const { permissions, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'permissions',
-    endpoint: '/api/permissions/permissions',
-    store: {
-      setData: store.setPermissions,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchPermissions(params?: Record<string, any>) {
-    try {
-      await store.fetchPermissions(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الصلاحيات',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchPermissionById(id: number | string) {
-    try {
-      return await store.fetchPermissionById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب الصلاحية',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchPermissions = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchPermissions(params ?? buildParams(), signal)
+  }
 
+  const debouncedFetchPermissions = useDebounceFn(fetchPermissions, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchPermissions()
+  }
+
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchPermissions()
+  }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchPermissions()
+  }
+
+  // ─── Fetch By Id ──────────────────────────────────────
+  const fetchPermissionById = (id: number | string) =>
+    store.fetchPermissionById(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.permissions),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    permissions,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchPermissions,
+    debouncedFetchPermissions,
     fetchPermissionById,
 
     // Utilities

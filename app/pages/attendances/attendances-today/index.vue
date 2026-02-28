@@ -1,298 +1,238 @@
 <script setup lang="ts">
-import { generateColumns } from "~/utils/generateColumns";
-import type {
-  AttendanceToday,
-  AttendanceTodayForm,
-} from "~/types/attendanceToday";
-import { emptyAttendanceTodayForm } from "~/types/attendanceToday";
-import { isAttendanceTodayRow } from "~/composables/attendances/today/isAttendanceTodayRow";
-import { useAttendanceToday } from "~/composables/attendances/today/useAttendancesToday";
+import { generateColumns } from '~/utils/generateColumns'
+import { useDebounceFn } from '@vueuse/core'
+import type { AttendanceToday } from '~/types/attendanceToday'
+import { useAttendanceToday } from '~/composables/attendances/today/useAttendancesToday'
+import { useAttendanceTodayActions } from '~/composables/attendances/today/useAttendanceTodayActions'
 
-const UButton = resolveComponent("UButton");
+const UButton   = resolveComponent('UButton')
+const config    = useRuntimeConfig()
+const { $api }  = useNuxtApp()
 
 definePageMeta({
-  layout: "dashboard",
-  title: "حضور اليوم",
+  layout: 'dashboard',
+  title:  'حضور اليوم',
   keepalive: false,
-});
+})
 
-/* ================== Composable ================== */
+/* ================== Data ================== */
 const {
-  data,
+  records,
   pagination,
-  pending,
+  loading,
   page,
   pageSize,
   search,
   setPage,
   setPageSize,
   setSearch,
-  deleteRecord,
-  // createRecord,
-  // updateRecord,
-} = useAttendanceToday();
+  fetchRecords,
+  refetch,
+} = useAttendanceToday()
 
-// const open = ref(false);
-// const titleDrower = ref("");
+/* ================== Actions ================== */
+const { remove } = useAttendanceTodayActions()
 
-/* ================== Computed ================== */
-const records = computed<AttendanceToday[]>(() => data.value ?? []);
+/* ================== Table ================== */
+const PAGE_SIZES: number[] = [10, 50, 100]
+
+const firstLoad     = ref(true)
+const sorting       = ref<any[]>([])
+const columnFilters = ref<any[]>([])
 
 const safePagination = computed(() => ({
-  total: pagination.value?.total ?? 0,
-  per_page: pagination.value?.per_page ?? pageSize.value,
+  total:        pagination.value?.total        ?? 0,
+  per_page:     pagination.value?.per_page     ?? pageSize.value,
   current_page: pagination.value?.current_page ?? page.value,
-  last_page: pagination.value?.last_page ?? 1,
-}));
+  last_page:    pagination.value?.last_page    ?? 1,
+}))
 
-/* ================== Table State ================== */
-const pageSizes = [10, 50, 100];
-const sorting = ref<any[]>([]);
-const columnFilters = ref<any[]>([]);
-const firstLoad = ref(true);
-
-const meta = {
+const tableMeta = {
   class: {
-    tr: (row: any) =>
-      "bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow",
+    tr: () => 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow',
   },
-};
-
-/* ================== Status / Punch Label Maps ================== */
-const statusLabels: Record<string, string> = {
-  present: "حاضر",
-  late: "متأخر",
-  out: "خارج",
-  absent: "غائب",
-};
-
-const punchLabels: Record<string, string> = {
-  in: "دخول",
-  out: "خروج",
-};
-
-/* ================== Columns ================== */
-/* ================== Columns ================== */
+}
 
 const columns = computed(() =>
-  records.value.length
+  records.value?.length
     ? generateColumns<any>(
         records.value,
         {
           labels: {
-            employee: "الموظف",
-            work_date: "تاريخ العمل",
-            first_check_in: "وقت الدخول",
-            last_check_out: "وقت الخروج",
-
-            // ربطنا التسميات بالحقول الجديدة المنسقة
-            worked_formatted: "ساعات العمل",
-
-            current_status: "الحالة الحالية",
-            last_punch_type: "آخر نوع تسجيل",
-
-            is_late: "دخول متأخر",
-            late_minutes: "مدة التأخير", // تم التعديل
-
-            is_early_leave: "خروج مبكر",
-            early_leave_minutes: "مدة الخروج المبكر", // تم التعديل
-
-            overtime_minutes: "الوقت الإضافي", // تم التعديل
-            undertime_minutes: "وقت التقصير", // تم التعديل
-            worked_minutes: 'وقت العمل',
-            is_incomplete: "مكتمل",
-            action: "العمليات",
+            employee:            'الموظف',
+            work_date:           'تاريخ العمل',
+            first_check_in:      'وقت الدخول',
+            last_check_out:      'وقت الخروج',
+            worked_formatted:    'ساعات العمل',
+            current_status:      'الحالة الحالية',
+            last_punch_type:     'آخر نوع تسجيل',
+            is_late:             'دخول متأخر',
+            late_minutes:        'مدة التأخير',
+            is_early_leave:      'خروج مبكر',
+            early_leave_minutes: 'مدة الخروج المبكر',
+            overtime_minutes:    'الوقت الإضافي',
+            undertime_minutes:   'وقت التقصير',
+            worked_minutes:      'وقت العمل',
+            is_incomplete:       'مكتمل',
+            action:              'العمليات',
           },
-          exclude: [
-            "id",
-            "is_inside",
-            "required_minutes",
-            "created_at",
-            "updated_at",
-          ],
+          exclude: ['id', 'is_inside', 'required_minutes', 'created_at', 'updated_at'],
           columns: {
-            employee: {type: "object", valueKey:"full_name", filterable: true },
-            work_date: { type: "date" },
-            first_check_in: { type: "date" }, // تأكد أن نوع date يعرض الوقت فقط إذا كان المطلوب H:i
-            last_check_out: { type: "date" },
-
-            // تمت إزالة { type: "number" } للحقول الزمنية لأنها أصبحت String
-            current_status_label: { filterable: true },
+            employee:              { type: 'object', valueKey: 'full_name', filterable: true },
+            work_date:             { type: 'date' },
+            first_check_in:        { type: 'date' },
+            last_check_out:        { type: 'date' },
+            current_status_label:  { filterable: true },
             last_punch_type_label: { filterable: true },
-            action: { hideable: false },
+            action:                { hideable: false },
           },
         },
-        UButton,
+        UButton
       )
-    : [],
-);
+    : []
+)
 
-/* ================== Effects ================== */
+/* ================== Branch Filter ================== */
+const selectedBranch    = ref<number | null>(null)
+const branchSearchQuery = ref('')
+const branchesLoading   = ref(false)
+const branches = ref<Array<{ label: string; value: number | null }>>([
+  { label: 'كل الفروع', value: null },
+])
+
+const searchBranches = useDebounceFn(async (query: string) => {
+  branchesLoading.value = true
+  try {
+    const res: any = await $api(`${config.public.apiBase}/api/branches`, {
+      params: { 'filter[search]': query, per_page: 20 },
+    })
+    branches.value = [
+      { label: 'كل الفروع', value: null },
+      ...(res?.data ?? []).map((b: any) => ({
+        label: b.name_ar || b.name,
+        value: b.id,
+      })),
+    ]
+  } catch (error) {
+    console.error('Error searching branches:', error)
+  } finally {
+    branchesLoading.value = false
+  }
+}, 300)
+
+const selectedBranchObj = computed({
+  get: (): { label: string; value: number | null } | undefined =>
+    branches.value.find(b => b.value === selectedBranch.value),
+  set: (val: { label: string; value: number | null } | undefined) => {
+    selectedBranch.value = val?.value ?? null
+  },
+})
+
+/* ================== Lifecycle ================== */
+onMounted(() => {
+  searchBranches('')
+  fetchRecords()
+})
+
 watch(
   records,
-  (val) => {
-    if (val.length) firstLoad.value = false;
-  },
-  { immediate: true },
-);
+  (val) => { if (val?.length) firstLoad.value = false },
+  { immediate: true }
+)
 
-/* ================== Handlers ================== */
-const onPageChange = (p: number) => setPage(p);
-const onPageSizeChange = (s: number) => setPageSize(s);
-const onSearchGlobal = (val: string) => setSearch(val);
-const onSortingChange = (val: any[]) => (sorting.value = val);
-const onColumnFiltersChange = (val: any[]) => (columnFilters.value = val);
+watch(branchSearchQuery, (q) => searchBranches(q))
 
+// ─── Watch فلتر الفرع فقط (بدون تاريخ) ──────────────
+watch(selectedBranch, (branch) => {
+  const filters: Record<string, any> = {}
 
-/* ================== Form Management ================== */
-// const editingId = ref<number | null>(null);
-// const mode = computed(() => (editingId.value ? "edit" : "create"));
-// const formModel = reactive<AttendanceTodayForm>(emptyAttendanceTodayForm());
+  if (branch !== null) {
+    filters['filter[branch_id]'] = branch
+  } else {
+    filters['filter[branch_id]'] = null
+  }
 
-// const openDrower = (payload: { title: string; row?: unknown }) => {
-//   (document.activeElement as HTMLElement)?.blur();
-//   open.value = !open.value;
-//   titleDrower.value = payload.title;
+  refetch(filters)
+})
 
-//   if (payload.row && isAttendanceTodayRow(payload.row)) {
-//     editingId.value = payload.row.id;
-//     Object.assign(formModel, {
-//       employee_id: payload.row.employee.id,
-//       work_date: payload.row.work_date || null,
-//       first_check_in: payload.row.first_check_in || null,
-//       last_check_out: payload.row.last_check_out || null,
-//       worked_minutes: payload.row.worked_minutes,
-//       current_status: payload.row.current_status,
-//       last_punch_type: payload.row.last_punch_type || "",
-//     });
-//   } else {
-//     editingId.value = null;
-//     Object.assign(formModel, emptyAttendanceTodayForm());
-//   }
-// };
+/* ================== Reset Filters ================== */
+async function resetFilters() {
+  selectedBranch.value    = null
+  branchSearchQuery.value = ''
 
-// const formRef = ref<{ submit: () => void } | null>(null);
-
-// const onSubmit = async (value: AttendanceTodayForm) => {
-//   try {
-//     if (editingId.value) {
-//       await updateRecord(editingId.value, value);
-//     } else {
-//       await createRecord(value);
-//     }
-//     open.value = false;
-//   } catch (error) {
-//     console.error("Submit error:", error);
-//   }
-// };
-
-const onDeleteRecordHandler = async (id: number) => {
-  await deleteRecord(id);
-};
+  await nextTick()
+  refetch({ 'filter[branch_id]': null })
+}
 </script>
 
 <template>
-  <!-- Loading أول تحميل فقط -->
-  <div
-    v-if="firstLoad && pending"
-    class="flex justify-center items-center py-20"
-  >
+  <!-- أول تحميل -->
+  <div v-if="firstLoad && loading" class="flex items-center justify-center py-20">
     <span class="text-muted text-lg">جارٍ التحميل...</span>
   </div>
 
+  <!-- الجدول -->
   <AppTable
     v-else
     :columns="columns"
-    :data="records"
-    :actions="{copy:false, view:false, edit:false}"
+    :data="records ?? []"
     :total="safePagination.total"
     :page="page"
-    :page-sizes="pageSizes"
+    :page-sizes="PAGE_SIZES"
     :page-size="pageSize"
-    :loading="pending"
-    :meta="meta"
+    :loading="loading"
+    :meta="tableMeta"
     :sorting="sorting"
     :global-filter="search"
     :column-filters="columnFilters"
-    :btnCreate="false"
+    :btn-create="false"
+    :actions="{ copy: false, view: false, edit: false }"
     title-btn-icon="lucide:user-check"
     title-btn-edit="تعديل سجل حضور"
     title-btn-create="إضافة سجل حضور"
-    @update:page="onPageChange"
-    @update:page-size="onPageSizeChange"
-    @update:sorting="onSortingChange"
-    @update:global-filter="onSearchGlobal"
-    @update:column-filters="onColumnFiltersChange"
-    @delete:row="onDeleteRecordHandler"
-  />
-  <!-- @drower:open="openDrower"
-    @update:data="openDrower" -->
+    @update:page="setPage"
+    @update:page-size="setPageSize"
+    @update:sorting="sorting = $event"
+    @update:global-filter="setSearch"
+    @update:column-filters="columnFilters = $event"
+    @delete:row="remove"
+  >
+    <template #toolbar-prepend>
+      <div class="flex flex-wrap gap-2 items-center">
 
-  <!-- <ClientOnly>
-    <UDrawer
-      v-model:open="open"
-      :description="`إدارة حضور اليوم`"
-      direction="left"
-      :title="titleDrower"
-      :ui="{
-        body: 'drower space-y-5 pt-0',
-        header: 'hidden',
-        title: 'text-primary',
-        container: 'px-4 gap-y-10 drower',
-        overlay: 'bg-green-400/30',
-        content:
-          'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
-      }"
-    >
-      <template #body>
-        <div class="flex items-center justify-end gap-2">
-          <h2 class="text-highlighted font-semibold">{{ titleDrower }}</h2>
-
-          <UIcon
-            v-if="editingId"
-            name="solar:pen-new-round-linear"
-            class="size-5"
-          />
-          <UIcon
-            v-else
-            name="ic:baseline-control-point-duplicate"
-            class="size-5"
+        <!-- فلتر الفرع -->
+        <div class="flex gap-2 items-center">
+          <label class="text-sm text-muted font-medium">الفرع:</label>
+          <USelectMenu
+            v-model="selectedBranchObj"
+            :items="branches"
+            :loading="branchesLoading"
+            searchable
+            searchable-placeholder="ابحث عن فرع..."
+            by="value"
+            option-attribute="label"
+            placeholder="اختر الفرع"
+            class="w-28"
+            size="sm"
+            trailing-icon="mi:select"
+            @update:query="branchSearchQuery = $event"
           />
         </div>
 
-        <ClientOnly>
-          <FormsAttendanceTodayForm
-            ref="formRef"
-            v-model="formModel"
-            :mode="mode"
-            @submit="onSubmit"
-            class="min-w-150 items-start"
-          />
-        </ClientOnly>
-      </template>
-
-      <template #footer>
+        <!-- إعادة تعيين -->
         <UButton
-          label="إرسال"
+          icon="i-lucide-x"
+          label="إعادة تعيين"
+          size="sm"
+          variant="ghost"
           color="neutral"
-          class="justify-center"
-          @click="formRef?.submit()"
+          @click="resetFilters"
         />
-
-        <UButton
-          label="إغلاق"
-          color="neutral"
-          variant="outline"
-          class="justify-center"
-          @click="open = false"
-        />
-      </template>
-    </UDrawer>
-  </ClientOnly> -->
+      </div>
+    </template>
+  </AppTable>
 </template>
 
 <style scoped>
-.ring-default {
-  --tw-ring-color: #00dc82 !important;
-}
+.ring-default { --tw-ring-color: #00dc82 !important; }
 </style>

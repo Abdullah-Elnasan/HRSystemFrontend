@@ -144,7 +144,7 @@ export const useUserGroupStore = defineStore('userGroups', {
 
       try {
         const response = await $api<apiResponse<any>>(
-          `${config.public.apiBase}/api/user-groups/assign`,
+          `${config.public.apiBase}/api/user-groups/permissions/assign`,
           { method: 'POST', body: payload }
         )
         return response
@@ -165,8 +165,8 @@ export const useUserGroupStore = defineStore('userGroups', {
 
       try {
         const response = await $api<apiResponse<any>>(
-          `${config.public.apiBase}/api/user-groups/remove`,
-          { method: 'POST', body: payload }
+          `${config.public.apiBase}/api/user-groups/permissions/remove`,
+          { method: 'DELETE', body: payload }
         )
         return response
       } catch (error: unknown) {

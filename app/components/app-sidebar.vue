@@ -4,6 +4,7 @@
     :ui="{
       footer: 'border-b border-default',
       root: ' max-w-64 border-2 border-default',
+      header: 'px-2',
     }"
     :min-size="22"
     :default-size="35"
@@ -18,9 +19,26 @@
     </template> -->
 
     <!-- الهيدر -->
-    <template #header="{ collapsed }">
-      <AppLogo width="100" v-if="!collapsed" class="" />
-    </template>
+<template #header="{ collapsed }">
+  <div class="px-0 flex items-center justify-center">
+      <img
+    v-if="!collapsed"
+    key="full-logo"
+    src="/logo-512.png"
+    width="100"
+    class="w-full"
+    alt="Al-diwan logo"
+  />
+  <img
+    v-else
+    key="shape-logo"
+    src="/shape.png"
+    class="w-full"
+    alt="Al-diwan logo"
+  />
+  </div>
+</template>
+
 
     <!-- المحتوى -->
     <template #default="{ collapsed }">
@@ -217,7 +235,7 @@ const items = computed<NavigationMenuItem[][]>(() => [
             {
               label: "حضور اليوم",
               icon: "lucide:calendar-check",
-              to: "/attendances/today",
+              to: "/attendances/attendances-today",
             },
             {
               label: "سجلات الحضور",
@@ -378,3 +396,7 @@ onMounted(async () => {
   await fetchRecords();
 });
 </script>
+
+<style>
+
+</style>

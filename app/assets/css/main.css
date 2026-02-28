@@ -3,8 +3,8 @@
 
 
 @font-face {
-  font-family: "Tajawal-Medium";
-  src: url("/fonts/Tajawal/Tajawal-Medium.ttf") format("truetype");
+  font-family: "Zain-Medium";
+  src: url("/fonts/Zain/Zain-Regular.ttf") format("truetype");
   font-weight: 800; /* ExtraBold */
   font-style: normal;
   font-display: swap;
@@ -13,7 +13,7 @@
 html,
 body,
 * {
-  font-family: "Tajawal-Medium", sans-serif !important;
+  font-family: "Zain-Medium", sans-serif !important;
 }
 
 
