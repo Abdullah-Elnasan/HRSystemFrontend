@@ -1,112 +1,100 @@
-// ~/composables/payroll-Items/usePayrollRecords.ts
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { usePayrollItemsStore } from '~/stores/payrollItems/payrollItems'
 import type { PayrollItemForm } from '~/types/payrolls/payrollItem'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
-export function usePayrollItems(payrollRunId?: string | string[] | undefined){
+export function usePayrollItems(payrollRunId?: string | string[]) {
   const store = usePayrollItemsStore()
-  const toast = useToast()
+  const { items, pagination, loading, error } = storeToRefs(store)
 
+  // ─── Dynamic Endpoint ─────────────────────────────────
   const endpoint = payrollRunId
-  ? `/api/payroll-runs/${payrollRunId}`
-  : '/api/payroll-items/payroll-items'
+    ? `api/payroll-runs/${payrollRunId}`
+    : 'api/payroll-items'
 
-  console.log(endpoint);
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'payroll-items',
-    endpoint: endpoint,
-    store: {
-      setData: store.setItems,
-    },
-  })
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
 
-  /* ================== Fetch ================== */
-  async function fetchItems(params?: Record<string, any>) {
-    try {
-      await store.fetchItems({
-        ...params,
-        endpoint, // 👈 نمرره فقط
-      })
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجلات الرواتب',
-        color: 'error',
-      })
-    }
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchRecordById(id: number | string) {
-    try {
-      return await store.fetchItemById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجل الراتب',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  /* ================== Create ================== */
-  // async function createRecord(payload: PayrollItemForm) {
-  //   try {
-  //     return await store.createRecord(payload)
-  //   } catch (error: any) {
-  //     toast.add({
-  //       title: 'خطأ',
-  //       description: store.error ?? 'فشل في إنشاء سجل الراتب',
-  //       color: 'error',
-  //     })
-  //     throw error
-  //   }
-  // }
-
-  /* ================== Update ================== */
-  async function updateItem(id: number, payload: Partial<PayrollItemForm>) {
-    try {
-      return await store.updateItem(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل سجل الراتب',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchItems = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchItems(params ?? buildParams(), signal, endpoint)
   }
 
-  /* ================== Delete ================== */
-  async function deleteItem(id: number) {
-    try {
-      await store.deleteItem(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف سجل الراتب',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchItems = useDebounceFn(fetchItems, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchItems()
   }
+
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchItems()
+  }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchItems()
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchItemById = (id: number | string) =>
+    store.fetchItemById(id)
+
+  const updateItem = (id: number, payload: Partial<PayrollItemForm> | FormData) =>
+    store.updateItem(id, payload)
+
+  const deleteItem = (id: number) =>
+    store.deleteItem(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.items),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    items,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchItems,
-    fetchRecordById,
-    // createItem,
+    debouncedFetchItems,
+    fetchItemById,
     updateItem,
     deleteItem,
 

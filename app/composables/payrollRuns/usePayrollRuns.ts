@@ -1,101 +1,97 @@
-// ~/composables/payroll-runs/usePayrollRuns.ts
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { usePayrollRunsStore } from '~/stores/payrollRuns/payrollRuns'
 import type { PayrollRunForm } from '~/types/payrolls/payrollRun'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function usePayrollRuns() {
   const store = usePayrollRunsStore()
-  const toast = useToast()
+  const { runs, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'payroll-runs',
-    endpoint: '/api/payroll-runs/payroll-runs',
-    store: {
-      setData: store.setRuns,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchRuns(params?: Record<string, any>) {
-    try {
-      await store.fetchRuns(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب دورات الرواتب',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchRunById(id: number | string) {
-    try {
-      return await store.fetchRunById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب دورة الرواتب',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  /* ================== aprooveRun ================== */
-  async function aprooveRun(payload: PayrollRunForm) {
-    try {
-      return await store.aprooveRun(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء دورة الرواتب',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchRuns = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchRuns(params ?? buildParams(), signal)
   }
 
-  /* ================== Update ================== */
-  async function updateRun(id: number, payload: Partial<PayrollRunForm>) {
-    try {
-      return await store.updateRun(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل دورة الرواتب',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchRuns = useDebounceFn(fetchRuns, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchRuns()
   }
 
-  /* ================== Delete ================== */
-  async function deleteRun(id: number) {
-    try {
-      await store.deleteRun(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف دورة الرواتب',
-        color: 'error',
-      })
-      throw error
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchRuns()
   }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchRuns()
+  }
+
+  // ─── Actions ──────────────────────────────────────────
+  const fetchRunById = (id: number | string) =>
+    store.fetchRunById(id)
+
+  const aprooveRun = (payload: PayrollRunForm | FormData) =>
+    store.aprooveRun(payload)
+
+  const updateRun = (id: number, payload: Partial<PayrollRunForm> | FormData) =>
+    store.updateRun(id, payload)
+
+  const deleteRun = (id: number) =>
+    store.deleteRun(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.runs),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    runs,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchRuns,
+    debouncedFetchRuns,
     fetchRunById,
     aprooveRun,
     updateRun,

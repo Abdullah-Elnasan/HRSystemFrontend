@@ -1,263 +1,199 @@
 <script setup lang="ts">
-import { generateColumns } from "~/utils/generateColumns";
-import type { PayrollItem, PayrollItemForm } from "~/types/payrolls/payrollItem";
-import { emptyPayrollItemForm } from "~/types/payrolls/payrollItem";
-import { isPayrollItemRow } from "~/composables/payrollItems/isPayrollItemRow";
-import { usePayrollItems } from "~/composables/payrollItems/usePayrollItems";
+import { generateColumns } from '~/utils/generateColumns'
+import type { PayrollItem, PayrollItemForm } from '~/types/payrolls/payrollItem'
+import { usePayrollItems } from '~/composables/payrollItems/usePayrollItems'
+import { usePayrollItemDrawer } from '~/composables/payrollItems/usePayrollItemDrawer'
+import { usePayrollItemActions } from '~/composables/payrollItems/usePayrollItemActions'
 
-const UButton = resolveComponent("UButton");
+const UButton = resolveComponent('UButton')
 
 definePageMeta({
-  layout: "dashboard",
-  title: "إدارة سجلات الرواتب",
+  layout: 'dashboard',
+  title:  'إدارة سجلات الرواتب',
   keepalive: false,
-});
+})
 
-/* ================== Composable ================== */
+/* ================== Data ================== */
 const {
-  data,
+  items,
   pagination,
-  pending,
+  loading,
   page,
   pageSize,
   search,
   setPage,
   setPageSize,
   setSearch,
-  deleteItem,
-  // createRecord,
-  updateItem,
-} = usePayrollItems();
+  fetchItems,
+} = usePayrollItems()
 
-const open = ref(false);
-const titleDrower = ref("");
+/* ================== Drawer ================== */
+const drawer = usePayrollItemDrawer()
 
-/* ================== Computed ================== */
-const items = computed<PayrollItem[]>(() => data.value ?? []);
-console.log(items.value);
+/* ================== Form Ref ================== */
+const formRef = ref<{ submit: () => void } | null>(null)
+
+/* ================== Actions ================== */
+const { submit, remove } = usePayrollItemActions(drawer.close)
+
+/* ================== Table ================== */
+const PAGE_SIZES: number[] = [10, 50, 100]
+
+const firstLoad     = ref(true)
+const sorting       = ref<any[]>([])
+const columnFilters = ref<any[]>([])
+
 const safePagination = computed(() => ({
-  total: pagination.value?.total ?? 0,
-  per_page: pagination.value?.per_page ?? pageSize.value,
+  total:        pagination.value?.total        ?? 0,
+  per_page:     pagination.value?.per_page     ?? pageSize.value,
   current_page: pagination.value?.current_page ?? page.value,
-  last_page: pagination.value?.last_page ?? 1,
-}));
+  last_page:    pagination.value?.last_page    ?? 1,
+}))
 
-/* ================== Table State ================== */
-const pageSizes = [10, 50, 100];
-const sorting = ref<any[]>([]);
-const columnFilters = ref<any[]>([]);
-const firstLoad = ref(true);
-
-const meta = {
+const tableMeta = {
   class: {
-    tr: (row: any) =>
-      "bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow",
+    tr: () => 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow',
   },
-};
+}
 
-/* ================== Enhanced Data ================== */
+// ─── Enhanced Data ────────────────────────────────────
 const enhancedItems = computed(() =>
-  items.value.map((item) => ({
+  items.value?.map(item => ({
     ...item,
-    // payroll_run_name: item.payroll_run_name,
     employee_name: item.employee.full_name,
-  }))
-);
+  })) ?? []
+)
 
-/* ================== Columns ================== */
 const columns = computed(() =>
   enhancedItems.value.length
     ? generateColumns<any>(
         enhancedItems.value,
         {
           labels: {
-            payroll_run_name: "دورة الرواتب",
-            id: "ID",
-            employee_name: "الموظف",
-            period_start: "بداية الفترة",
-            period_end: "نهاية الفترة",
-            base_amount: "المبلغ الأساسي",
-            status: "حالة الاعتماد",
-            overtime_amount: "مبلغ العمل الإضافي",
-            currency: "العملة",
-            manual_adjustment: "التعديل اليدوي",
-            adjustment_note: "ملاحظة التعديل",
-            total_amount: "المبلغ الإجمالي",
-            action: "العمليات",
+            payroll_run_name:  'دورة الرواتب',
+            id:                'ID',
+            employee_name:     'الموظف',
+            period_start:      'بداية الفترة',
+            period_end:        'نهاية الفترة',
+            base_amount:       'المبلغ الأساسي',
+            status:            'حالة الاعتماد',
+            overtime_amount:   'مبلغ العمل الإضافي',
+            currency:          'العملة',
+            manual_adjustment: 'التعديل اليدوي',
+            adjustment_note:   'ملاحظة التعديل',
+            total_amount:      'المبلغ الإجمالي',
+            action:            'العمليات',
           },
           exclude: [
-            "payroll_run_id",
-            "payroll_run",
-            "employee",
-            "updated_at",
-            "created_at",
-            "employee_id"
-
+            'payroll_run_id', 'payroll_run', 'employee',
+            'updated_at', 'created_at', 'employee_id',
           ],
           columns: {
-            payroll_run_name: { filterable: true },
-            employee_name: { filterable: true },
-            period_start: { type: "date" },
-            period_end: { type: "date" },
-            base_amount: { type: "number" },
-            overtime_amount: { type: "number" },
-            currency: { filterable: true },
-            manual_adjustment: { type: "number" },
-            adjustment_note: { hidden: true },
-            total_amount: { type: "number" },
-            action: { hideable: false },
+            payroll_run_name:  { filterable: true },
+            employee_name:     { filterable: true },
+            period_start:      { type: 'date' },
+            period_end:        { type: 'date' },
+            base_amount:       { type: 'number' },
+            overtime_amount:   { type: 'number' },
+            currency:          { filterable: true },
+            manual_adjustment: { type: 'number' },
+            adjustment_note:   { hidden: true },
+            total_amount:      { type: 'number' },
+            action:            { hideable: false },
           },
         },
         UButton
       )
     : []
-);
+)
 
-/* ================== Effects ================== */
+/* ================== Lifecycle ================== */
+onMounted(() => fetchItems())
+
 watch(
   items,
-  (val) => {
-    if (val.length) firstLoad.value = false;
-  },
+  (val) => { if (val?.length) firstLoad.value = false },
   { immediate: true }
-);
+)
 
 /* ================== Handlers ================== */
-const onPageChange = (p: number) => setPage(p);
-const onPageSizeChange = (s: number) => setPageSize(s);
-const onSearchGlobal = (val: string) => setSearch(val);
-const onSortingChange = (val: any[]) => (sorting.value = val);
-const onColumnFiltersChange = (val: any[]) => (columnFilters.value = val);
+const onSubmit = (_value: Partial<PayrollItemForm>) =>
+  submit(drawer.editingId.value, { ...drawer.formModel })
 
-/* ================== Form Management ================== */
-const editingId = ref<number | null>(null);
-const mode = computed(() => (editingId.value ? "edit" : "create"));
-const formModel = reactive<PayrollItemForm>(emptyPayrollItemForm());
-
-const openDrower = (payload: { title: string; row?: unknown }) => {
-  (document.activeElement as HTMLElement)?.blur();
-  open.value = !open.value;
-  titleDrower.value = payload.title;
-
-  if (payload.row && isPayrollItemRow(payload.row)) {
-    editingId.value = payload.row.id;
-    Object.assign(formModel, {
-      payroll_run_id: payload.row.payroll_run_id,
-      employee_id: payload.row.employee.id,
-      period_start: payload.row.period_start || null,
-      period_end: payload.row.period_end || null,
-      base_amount: payload.row.base_amount,
-      overtime_amount: payload.row.overtime_amount,
-      currency: payload.row.currency,
-      manual_adjustment: payload.row.manual_adjustment,
-      adjustment_note: payload.row.adjustment_note || "",
-      total_amount: payload.row.total_amount,
-    });
-  } else {
-    editingId.value = null;
-    Object.assign(formModel, emptyPayrollItemForm());
-  }
-};
-
-const formRef = ref<{ submit: () => void } | null>(null);
-
-const onSubmit = async (value: PayrollItemForm) => {
-  try {
-    console.log('sadfas')
-    console.log(editingId.value)
-    if (editingId.value) {
-      await updateItem(editingId.value, value);
-    } else {
-      // await createRecord(value);
-    }
-    open.value = false;
-  } catch (error) {
-    console.error("Submit error:", error);
-  }
-};
-
-const onDeleteRecordHandler = async (id: number) => {
-  await deleteItem(id);
-};
+function submitForm() {
+  formRef.value?.submit()
+}
 </script>
 
 <template>
-  <!-- Loading أول تحميل فقط -->
-  <div
-    v-if="firstLoad && pending"
-    class="flex justify-center items-center py-20"
-  >
+  <!-- أول تحميل -->
+  <div v-if="firstLoad && loading" class="flex items-center justify-center py-20">
     <span class="text-muted text-lg">جارٍ التحميل...</span>
   </div>
 
+  <!-- الجدول -->
   <AppTable
     v-else
-    :actions="{copy:false, view:false, delete:false, edit:{label:'منح أو خصم يدوي'}, displayMode:'inline'}"
     :columns="columns"
     :data="enhancedItems"
     :total="safePagination.total"
     :page="page"
-    :page-sizes="pageSizes"
+    :page-sizes="PAGE_SIZES"
     :page-size="pageSize"
-    :loading="pending"
-    :meta="meta"
+    :loading="loading"
+    :meta="tableMeta"
     :sorting="sorting"
     :global-filter="search"
     :column-filters="columnFilters"
+    :actions="{ copy: false, view: false, delete: false, edit: { label: 'منح أو خصم يدوي' }, displayMode: 'inline' }"
+    :btn-create="false"
     title-btn-create="إضافة سجل راتب"
     title-btn-icon="lucide:receipt-text"
     title-btn-edit="تعديل سجل راتب"
-    @update:page="onPageChange"
-    @update:page-size="onPageSizeChange"
-    @update:sorting="onSortingChange"
-    @update:global-filter="onSearchGlobal"
-    @update:column-filters="onColumnFiltersChange"
-    @delete:row="onDeleteRecordHandler"
-    @drower:open="openDrower"
-    @update:data="openDrower"
+    @update:page="setPage"
+    @update:page-size="setPageSize"
+    @update:sorting="sorting = $event"
+    @update:global-filter="setSearch"
+    @update:column-filters="columnFilters = $event"
+    @delete:row="remove"
+    @drower:open="drawer.open"
+    @update:data="drawer.open"
   />
 
+  <!-- Drawer -->
   <ClientOnly>
     <UDrawer
-      v-model:open="open"
-      :description="`إدارة سجلات الرواتب`"
+      v-model:open="drawer.isOpen.value"
       direction="left"
-      :title="titleDrower"
+      :title="drawer.title.value"
       :ui="{
-        body: 'drower space-y-5 pt-0',
-        header: 'hidden',
-        title: 'text-primary',
-        container: 'px-4 gap-y-10 drower',
+        body:    'drower space-y-5 pt-0',
+        header:  'hidden',
+        title:   'text-primary',
         overlay: 'bg-green-400/30',
-        content:
-          'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
+        content: 'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
       }"
     >
       <template #body>
+        <!-- Header -->
         <div class="flex items-center justify-end gap-2">
-          <h2 class="text-highlighted font-semibold">{{ titleDrower }}</h2>
-
+          <h2 class="text-highlighted font-semibold">{{ drawer.title.value }}</h2>
           <UIcon
-            v-if="editingId"
-            name="solar:pen-new-round-linear"
-            class="size-5"
-          />
-          <UIcon
-            v-else
-            name="ic:baseline-control-point-duplicate"
+            :name="drawer.mode.value === 'edit'
+              ? 'solar:pen-new-round-linear'
+              : 'ic:baseline-control-point-duplicate'"
             class="size-5"
           />
         </div>
 
-        <ClientOnly>
-          <FormsPayrollItemsForm
-            ref="formRef"
-            v-model="formModel"
-            :mode="mode"
-            @submit="onSubmit"
-            class="min-w-150 items-start"
-          />
-        </ClientOnly>
+        <!-- Form -->
+        <FormsPayrollItemsForm
+          ref="formRef"
+          v-model="drawer.formModel"
+          :mode="drawer.mode.value"
+          class="min-w-150 items-start"
+          @submit="onSubmit"
+        />
       </template>
 
       <template #footer>
@@ -265,15 +201,14 @@ const onDeleteRecordHandler = async (id: number) => {
           label="إرسال"
           color="neutral"
           class="justify-center"
-          @click="formRef?.submit()"
+          @click="submitForm()"
         />
-
         <UButton
           label="إغلاق"
           color="neutral"
           variant="outline"
           class="justify-center"
-          @click="open = false"
+          @click="drawer.close()"
         />
       </template>
     </UDrawer>
@@ -281,7 +216,5 @@ const onDeleteRecordHandler = async (id: number) => {
 </template>
 
 <style scoped>
-.ring-default {
-  --tw-ring-color: #00dc82 !important;
-}
+.ring-default { --tw-ring-color: #00dc82 !important; }
 </style>
