@@ -1,98 +1,71 @@
-// ~/stores/overtime-pending/overtime-pending.ts
-import { defineStore } from "pinia";
-import type { OvertimePending, OvertimePendingForm } from "~/types/payrolls/overtimePending";
-import type { PaginatedResponse } from "~/types/table";
-import { fetchList } from "~/service/useAsyncData";
-import { createResource } from "~/service/createResource";
-import { updateResource } from "~/service/updateResource";
+import { defineStore } from 'pinia'
+import { parseError } from '~/utils/parseError'
+import type { OvertimePending, OvertimePendingForm, OvertimePendingApiResponse } from '~/types/payrolls/overtimePending'
+import type { PaginationMeta } from '~/types/table'
 
-export const useOvertimePendingStore = defineStore("overtimePending", {
-  state: () => ({
-    records: [] as OvertimePending[],
-    pagination: {
-      current_page: 1,
-      per_page: 10,
-      total: 0,
-      last_page: 1,
-    },
-    loading: false,
-    error: null as string | null,
+interface OvertimePendingState {
+  records:    OvertimePending[]
+  pagination: PaginationMeta | null
+  loading:    boolean
+  error:      string | null
+}
+
+export const useOvertimePendingStore = defineStore('overtimePending', {
+  state: (): OvertimePendingState => ({
+    records:    [],
+    pagination: null,
+    loading:    false,
+    error:      null,
   }),
 
-  getters: {
-    getRecords: (state) => state.records,
-    isLoading: (state) => state.loading,
-  },
-
   actions: {
-    /* ================== Fetch Records (Paginated) ================== */
-    async fetchRecords(params?: Record<string, any>) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
+    _setLoading(value: boolean) { this.loading = value },
+    _setError(message: string | null) { this.error = message },
+
+    async fetchRecords(params?: Record<string, any>, signal?: AbortSignal) {
+      const config   = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        const response = await fetchList<PaginatedResponse<OvertimePending>>({
-          endpoint: '/api/overtime-pending/overtime-pending',
-          page: params?.page ?? 1,
-          perPage: params?.per_page ?? 10,
-          search: params?.filter?.search,
-        });
-
-        this.records = response.data;
-        this.pagination = response.pagination;
-
-        if ((response as any).messageAr) {
-          toast.add({ title: (response as any).messageAr, color: 'success' });
-        }
-
-        return response;
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
+        const response = await $api<OvertimePendingApiResponse<OvertimePending[]>>(
+          `${config.public.apiBase}/api/overtime/pending`,
+          { query: params, signal }
+        )
+        this.records    = response.data
+        this.pagination = response.pagination
+      } catch (error: unknown) {
+        if ((error as Error).name === 'AbortError') return
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false;
+        this._setLoading(false)
       }
     },
 
-
-    /* ================== Create Record ================== */
     async createRecord(payload: OvertimePendingForm | FormData) {
-      this.loading = true;
-      this.error = null;
-      const toast = useToast();
+      const config   = useRuntimeConfig()
+      const { $api } = useNuxtApp()
+
+      this._setLoading(true)
+      this._setError(null)
 
       try {
-        return await createResource<OvertimePending>({
-          endpoint: '/api/overtime-pending/overtime-pending',
-          payload,
-          toast: useToast(),
-
-        });
-      } catch (err: any) {
-        handleApiError(err, toast);
-        throw err;
+        const response = await $api<OvertimePendingApiResponse<OvertimePending>>(
+          `${config.public.apiBase}/api/overtime-approvals`,
+          { method: 'POST', body: payload }
+        )
+        return response
+      } catch (error: unknown) {
+        this._setError(parseError(error))
+        throw error
       } finally {
-        this.loading = false;
+        this._setLoading(false)
       }
     },
 
-
-
-    /* ================== Local State Management ================== */
-    setRecords(payload: PaginatedResponse<OvertimePending>) {
-      this.records = payload.data;
-      this.pagination = payload.pagination;
-    },
-
-    addRecord(record: OvertimePending) {
-      this.records.unshift(record);
-      this.pagination.total += 1;
-    },
-
-
-    clearError() {
-      this.error = null;
-    },
+    clearError() { this.error = null },
   },
-});
+})

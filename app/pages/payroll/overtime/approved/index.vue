@@ -1,264 +1,208 @@
 <script setup lang="ts">
-import { generateColumns } from "~/utils/generateColumns";
-import type {
-  OvertimeApproved,
-  OvertimeApprovedForm,
-} from "~/types/payrolls/overtimeApproved";
-import { emptyOvertimeApprovedForm } from "~/types/payrolls/overtimeApproved";
-import { isOvertimeApprovedRow } from "~/composables/overtimeApproved/isOvertimeApprovedRow";
-import { useOvertimeApproved } from "~/composables/overtimeApproved/useOvertimeApproved";
+import { generateColumns } from '~/utils/generateColumns'
+import type { OvertimeApproved, OvertimeApprovedForm } from '~/types/payrolls/overtimeApproved'
+import { useOvertimeApproved } from '~/composables/overtimeApproved/useOvertimeApproved'
+import { useOvertimeApprovedDrawer } from '~/composables/overtimeApproved/useOvertimeApprovedDrawer'
+import { useOvertimeApprovedActions } from '~/composables/overtimeApproved/useOvertimeApprovedActions'
 
-const UButton = resolveComponent("UButton");
+const UButton = resolveComponent('UButton')
 
 definePageMeta({
-  layout: "dashboard",
-  title: "إدارة الوقت الإضافي المعلق",
+  layout: 'dashboard',
+  title:  'إدارة الوقت الإضافي المعتمد',
   keepalive: false,
-});
+})
 
-/* ================== Composable ================== */
+/* ================== Data ================== */
 const {
-  data,
+  records,
   pagination,
-  pending,
+  loading,
   page,
   pageSize,
   search,
   setPage,
   setPageSize,
   setSearch,
-  deleteRecord,
-  createRecord,
-  updateRecord,
-} = useOvertimeApproved();
+  fetchRecords,
+} = useOvertimeApproved()
 
-const open = ref(false);
-const titleDrower = ref("");
+/* ================== Drawer ================== */
+const drawer = useOvertimeApprovedDrawer()
 
-/* ================== Computed ================== */
-const records = computed<OvertimeApproved[]>(() => data.value ?? []);
+/* ================== Form Ref ================== */
+const formRef = ref<{ submit: () => void } | null>(null)
+
+/* ================== Actions ================== */
+const { submit, remove } = useOvertimeApprovedActions(drawer.close)
+
+/* ================== Table ================== */
+const PAGE_SIZES: number[] = [10, 50, 100]
+
+const firstLoad     = ref(true)
+const sorting       = ref<any[]>([])
+const columnFilters = ref<any[]>([])
 
 const safePagination = computed(() => ({
-  total: pagination.value?.total ?? 0,
-  per_page: pagination.value?.per_page ?? pageSize.value,
+  total:        pagination.value?.total        ?? 0,
+  per_page:     pagination.value?.per_page     ?? pageSize.value,
   current_page: pagination.value?.current_page ?? page.value,
-  last_page: pagination.value?.last_page ?? 1,
-}));
+  last_page:    pagination.value?.last_page    ?? 1,
+}))
 
-/* ================== Table State ================== */
-const pageSizes = [10, 50, 100];
-const sorting = ref<any[]>([]);
-const columnFilters = ref<any[]>([]);
-const firstLoad = ref(true);
-
-const meta = {
+const tableMeta = {
   class: {
-    tr: (row: any) =>
-      "bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow",
+    tr: () => 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow',
   },
-};
+}
 
-/* ================== Status Labels ================== */
 const statusLabels: Record<string, string> = {
-  approved: "معتمد",
-  rejected: "مرفوض",
-};
+  approved: 'معتمد',
+  rejected: 'مرفوض',
+}
 
-/* ================== Enhanced Data ================== */
+// ─── Enhanced Data ────────────────────────────────────
 const enhancedRecords = computed(() =>
-  records.value.map((record) => ({
-    ...record,
-    employee_name: record.employee.name,
-    date_from: record.period.from,
-    date_to: record.period.to,
-    approved_by_name: record.approved_by.name,
-    payroll_run_name: record.payroll?.name ?? "—",
-    status_label: statusLabels[record.status] ?? record.status,
-  })),
-);
+  records.value?.map(r => ({
+    ...r,
+    employee_name:    r.employee.name,
+    date_from:        r.period.from,
+    date_to:          r.period.to,
+    approved_by_name: r.approved_by.name,
+    payroll_run_name: r.payroll?.name ?? '—',
+    status_label:     statusLabels[r.status] ?? r.status,
+  })) ?? []
+)
 
-/* ================== Columns ================== */
 const columns = computed(() =>
   enhancedRecords.value.length
     ? generateColumns<any>(
         enhancedRecords.value,
         {
           labels: {
-            employee_name: "الموظف",
-            date_from: "من تاريخ",
-            date_to: "إلى تاريخ",
-            approved_minutes_time: "الدقائق المعتمدة",
-            rate_multiplier: "معامل السعر",
-            approved_by_name: "معتمد من",
-            status_label: "الحالة",
-            is_paid: "حالة الدفع",
-            payroll_run_name: "دورة الرواتب",
-            action: "العمليات",
+            employee_name:         'الموظف',
+            date_from:             'من تاريخ',
+            date_to:               'إلى تاريخ',
+            approved_minutes_time: 'الدقائق المعتمدة',
+            rate_multiplier:       'معامل السعر',
+            approved_by_name:      'معتمد من',
+            status_label:          'الحالة',
+            is_paid:               'حالة الدفع',
+            payroll_run_name:      'دورة الرواتب',
+            action:                'العمليات',
           },
           exclude: [
-            "employee",
-            "created_at",
-            "payroll_run",
-            "payroll",
-            "period",
-            "approved_by",
-            "status",
-            "approved_minutes",
+            'employee', 'created_at', 'payroll_run', 'payroll',
+            'period', 'approved_by', 'status', 'approved_minutes',
           ],
           columns: {
-            employee_name: { filterable: true },
-            date_from: { type: "date" },
-            date_to: { type: "date" },
-            approved_minutes: { type: "number" },
-            rate_multiplier: { type: "number" },
-            approved_by: { type: "number" },
-            status_label: { filterable: true },
+            employee_name:    { filterable: true },
+            date_from:        { type: 'date' },
+            date_to:          { type: 'date' },
+            rate_multiplier:  { type: 'number' },
+            status_label:     { filterable: true },
             payroll_run_name: { filterable: true },
-            action: { hideable: false },
+            action:           { hideable: false },
           },
         },
-        UButton,
+        UButton
       )
-    : [],
-);
+    : []
+)
 
-/* ================== Effects ================== */
+/* ================== Lifecycle ================== */
+onMounted(() => fetchRecords())
+
 watch(
   records,
-  (val) => {
-    if (val.length) firstLoad.value = false;
-  },
-  { immediate: true },
-);
+  (val) => { if (val?.length) firstLoad.value = false },
+  { immediate: true }
+)
 
 /* ================== Handlers ================== */
-const onPageChange = (p: number) => setPage(p);
-const onPageSizeChange = (s: number) => setPageSize(s);
-const onSearchGlobal = (val: string) => setSearch(val);
-const onSortingChange = (val: any[]) => (sorting.value = val);
-const onColumnFiltersChange = (val: any[]) => (columnFilters.value = val);
+const onSubmit = (_value: Partial<OvertimeApprovedForm>) =>
+  submit(drawer.editingId.value, { ...drawer.formModel })
 
-/* ================== Form Management ================== */
-const editingId = ref<number | null>(null);
-const mode = computed(() => (editingId.value ? "edit" : "create"));
-const formModel = reactive<OvertimeApprovedForm>(emptyOvertimeApprovedForm());
-
-const openDrower = (payload: { title: string; row?: unknown }) => {
-  (document.activeElement as HTMLElement)?.blur();
-  open.value = !open.value;
-  titleDrower.value = payload.title;
-
-  if (payload.row && isOvertimeApprovedRow(payload.row)) {
-    editingId.value = payload.row.id;
-    Object.assign(formModel, {
-      employee_name: payload.row.employee.name,
-      approved_minutes: payload.row.approved_minutes,
-      rate_multiplier: payload.row.rate_multiplier,
-    });
-  }
-};
-
-const formRef = ref<{ submit: () => void } | null>(null);
-
-const onSubmit = async (value: OvertimeApprovedForm) => {
-  try {
-    if (editingId.value) {
-      await updateRecord(editingId.value, value);
-    }
-    open.value = false;
-  } catch (error) {
-    console.error("Submit error:", error);
-  }
-};
-
-const onDeleteRecordHandler = async (id: number) => {
-  await deleteRecord(id);
-};
+function submitForm() {
+  formRef.value?.submit()
+}
 </script>
 
 <template>
-  <!-- Loading أول تحميل فقط -->
-  <div
-    v-if="firstLoad && pending"
-    class="flex justify-center items-center py-20"
-  >
+  <!-- أول تحميل -->
+  <div v-if="firstLoad && loading" class="flex items-center justify-center py-20">
     <span class="text-muted text-lg">جارٍ التحميل...</span>
   </div>
 
+  <!-- الجدول -->
   <AppTable
     v-else
-    :actions="{
-      view: false,
-      copy: false,
-      edit: { label: 'اعتماد', icon: 'i-lucide-pen' },
-      delete: true,
-      displayMode: 'dropdown',
-    }"
     :columns="columns"
     :data="enhancedRecords"
     :total="safePagination.total"
     :page="page"
-    :page-sizes="pageSizes"
+    :page-sizes="PAGE_SIZES"
     :page-size="pageSize"
-    :loading="pending"
-    :meta="meta"
+    :loading="loading"
+    :meta="tableMeta"
     :sorting="sorting"
     :global-filter="search"
     :column-filters="columnFilters"
+    :actions="{
+      view:        false,
+      copy:        false,
+      edit:        { label: 'تعديل', icon: 'i-lucide-pen' },
+      delete:      true,
+      displayMode: 'dropdown',
+    }"
+    :btn-create="false"
     title-btn-create="إضافة وقت إضافي"
     title-btn-icon="lucide:clock-alert"
     title-btn-edit="تعديل وقت إضافي"
-    @update:page="onPageChange"
-    @update:page-size="onPageSizeChange"
-    @update:sorting="onSortingChange"
-    @update:global-filter="onSearchGlobal"
-    @update:column-filters="onColumnFiltersChange"
-    @delete:row="onDeleteRecordHandler"
-    @drower:open="openDrower"
-    @update:data="openDrower"
+    @update:page="setPage"
+    @update:page-size="setPageSize"
+    @update:sorting="sorting = $event"
+    @update:global-filter="setSearch"
+    @update:column-filters="columnFilters = $event"
+    @delete:row="remove"
+    @drower:open="drawer.open"
+    @update:data="drawer.open"
   />
 
+  <!-- Drawer -->
   <ClientOnly>
     <UDrawer
-      v-model:open="open"
-      :description="`إدارة الوقت الإضافي المعلق`"
+      v-model:open="drawer.isOpen.value"
       direction="left"
-      :title="titleDrower"
+      :title="drawer.title.value"
       :ui="{
-        body: 'drower space-y-5 pt-0',
-        header: 'hidden',
-        title: 'text-primary',
-        container: 'px-4 gap-y-10 drower',
+        body:    'drower space-y-5 pt-0',
+        header:  'hidden',
+        title:   'text-primary',
         overlay: 'bg-green-400/30',
-        content:
-          'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
+        content: 'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
       }"
     >
       <template #body>
+        <!-- Header -->
         <div class="flex items-center justify-end gap-2">
-          <h2 class="text-highlighted font-semibold">{{ titleDrower }}</h2>
-
+          <h2 class="text-highlighted font-semibold">{{ drawer.title.value }}</h2>
           <UIcon
-            v-if="editingId"
-            name="solar:pen-new-round-linear"
-            class="size-5"
-          />
-          <UIcon
-            v-else
-            name="ic:baseline-control-point-duplicate"
+            :name="drawer.mode.value === 'edit'
+              ? 'solar:pen-new-round-linear'
+              : 'ic:baseline-control-point-duplicate'"
             class="size-5"
           />
         </div>
 
-        <ClientOnly>
-          <FormsPayrollOvertimeApprovedForm
-            ref="formRef"
-            v-model="formModel"
-            :mode="mode"
-            @submit="onSubmit"
-            class="min-w-150 items-start"
-          />
-        </ClientOnly>
+        <!-- Form -->
+        <FormsPayrollOvertimeApprovedForm
+          ref="formRef"
+          v-model="drawer.formModel"
+          :mode="drawer.mode.value"
+          class="min-w-150 items-start"
+          @submit="onSubmit"
+        />
       </template>
 
       <template #footer>
@@ -266,15 +210,14 @@ const onDeleteRecordHandler = async (id: number) => {
           label="إرسال"
           color="neutral"
           class="justify-center"
-          @click="formRef?.submit()"
+          @click="submitForm()"
         />
-
         <UButton
           label="إغلاق"
           color="neutral"
           variant="outline"
           class="justify-center"
-          @click="open = false"
+          @click="drawer.close()"
         />
       </template>
     </UDrawer>
@@ -282,7 +225,5 @@ const onDeleteRecordHandler = async (id: number) => {
 </template>
 
 <style scoped>
-.ring-default {
-  --tw-ring-color: #00dc82 !important;
-}
+.ring-default { --tw-ring-color: #00dc82 !important; }
 </style>

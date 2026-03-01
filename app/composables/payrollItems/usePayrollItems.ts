@@ -9,7 +9,7 @@ export function usePayrollItems(payrollRunId?: string | string[]) {
 
   // ─── Dynamic Endpoint ─────────────────────────────────
   const endpoint = payrollRunId
-    ? `api/payroll-runs/${payrollRunId}`
+    ? `api/payroll-runs/${payrollRunId}/entries`
     : 'api/payroll-items'
 
   // ─── Pagination & Search State ───────────────────────

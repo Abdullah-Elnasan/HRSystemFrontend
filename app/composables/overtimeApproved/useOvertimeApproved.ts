@@ -1,100 +1,97 @@
+import { storeToRefs } from 'pinia'
+import { useDebounceFn } from '@vueuse/core'
 import { useOvertimeApprovedStore } from '~/stores/overtimeApproved/overtimeApproved'
 import type { OvertimeApprovedForm } from '~/types/payrolls/overtimeApproved'
-import { usePaginatedList } from '~/composables/usePaginatedList'
 
 export function useOvertimeApproved() {
   const store = useOvertimeApprovedStore()
-  const toast = useToast()
+  const { records, pagination, loading, error } = storeToRefs(store)
 
-  /* ================== Paginated List ================== */
-  const list = usePaginatedList({
-    key: 'overtime-pending',
-    endpoint: '/api/overtime-approved/overtime-approved',
-    store: {
-      setData: store.setRecords,
-    },
-  })
+  // ─── Pagination & Search State ───────────────────────
+  const page     = ref(1)
+  const pageSize = ref(10)
+  const search   = ref('')
 
-  /* ================== Fetch ================== */
-  async function fetchRecords(params?: Record<string, any>) {
-    try {
-      await store.fetchRecords(params)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجلات الوقت الإضافي',
-        color: 'error',
-      })
-    }
+  // ─── AbortController ─────────────────────────────────
+  let abortController: AbortController | null = null
+
+  function cancelPreviousRequest() {
+    abortController?.abort()
+    abortController = new AbortController()
+    return abortController.signal
   }
 
-  async function fetchRecordById(id: number | string) {
-    try {
-      return await store.fetchRecordById(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في جلب سجل الوقت الإضافي',
-        color: 'error',
-      })
-      throw error
+  // ─── Build Params ─────────────────────────────────────
+  function buildParams() {
+    const params: Record<string, any> = {
+      page:     page.value,
+      per_page: pageSize.value,
     }
+
+    if (search.value) {
+      params['filter[search]'] = search.value
+    }
+
+    return params
   }
 
-  /* ================== Create ================== */
-  async function createRecord(payload: OvertimeApprovedForm) {
-    try {
-      return await store.createRecord(payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في إنشاء سجل الوقت الإضافي',
-        color: 'error',
-      })
-      throw error
-    }
+  // ─── Fetch ────────────────────────────────────────────
+  const fetchRecords = (params?: Record<string, any>) => {
+    const signal = cancelPreviousRequest()
+    return store.fetchRecords(params ?? buildParams(), signal)
   }
 
-  /* ================== Update ================== */
-  async function updateRecord(id: number, payload: Partial<OvertimeApprovedForm>) {
-    try {
-      return await store.updateRecord(id, payload)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في تعديل سجل الوقت الإضافي',
-        color: 'error',
-      })
-      throw error
-    }
+  const debouncedFetchRecords = useDebounceFn(fetchRecords, 500)
+
+  // ─── Pagination Setters ───────────────────────────────
+  function setPage(p: number) {
+    page.value = p
+    fetchRecords()
   }
 
-  /* ================== Delete ================== */
-  async function deleteRecord(id: number) {
-    try {
-      await store.deleteRecord(id)
-    } catch (error: any) {
-      toast.add({
-        title: 'خطأ',
-        description: store.error ?? 'فشل في حذف سجل الوقت الإضافي',
-        color: 'error',
-      })
-      throw error
-    }
+  function setPageSize(s: number) {
+    pageSize.value = s
+    page.value = 1
+    fetchRecords()
   }
+
+  function setSearch(val: string) {
+    search.value = val
+    page.value = 1
+    debouncedFetchRecords()
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────
+  const fetchRecordById = (id: number | string) =>
+    store.fetchRecordById(id)
+
+  const createRecord = (payload: OvertimeApprovedForm | FormData) =>
+    store.createRecord(payload)
+
+  const updateRecord = (id: number, payload: Partial<OvertimeApprovedForm> | FormData) =>
+    store.updateRecord(id, payload)
+
+  const deleteRecord = (id: number) =>
+    store.deleteRecord(id)
 
   return {
-    // من usePaginatedList
-    ...list,
-
     // State
-    data: computed(() => store.records),
-    pagination: computed(() => store.pagination),
-    loading: computed(() => store.loading),
-    error: computed(() => store.error),
+    records,
+    pagination,
+    loading,
+    error,
+
+    // Pagination
+    page,
+    pageSize,
+    search,
+    setPage,
+    setPageSize,
+    setSearch,
 
     // Actions
     fetchRecords,
+    debouncedFetchRecords,
     fetchRecordById,
     createRecord,
     updateRecord,
