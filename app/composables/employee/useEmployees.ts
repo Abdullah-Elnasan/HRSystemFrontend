@@ -12,6 +12,13 @@ export function useEmployees() {
   const pageSize = ref(10)
   const search   = ref('')
 
+  // ─── Filters ──────────────────────────────────────────
+  const selectedStatus     = ref<string | null>(null)
+  const selectedBranch     = ref<number | null>(null)
+  const selectedDepartment = ref<number | null>(null)
+
+  const activeFilters = reactive<Record<string, any>>({})
+
   // ─── AbortController ─────────────────────────────────
   let abortController: AbortController | null = null
 
@@ -22,14 +29,25 @@ export function useEmployees() {
   }
 
   // ─── Build Params ─────────────────────────────────────
-  function buildParams() {
+  function buildParams(extra?: Record<string, any>) {
     const params: Record<string, any> = {
       page:     page.value,
       per_page: pageSize.value,
+      ...activeFilters,
     }
 
     if (search.value) {
       params['filter[search]'] = search.value
+    }
+
+    if (extra) {
+      Object.entries(extra).forEach(([key, val]) => {
+        if (val === null || val === undefined) {
+          delete params[key]
+        } else {
+          params[key] = val
+        }
+      })
     }
 
     return params
@@ -43,22 +61,60 @@ export function useEmployees() {
 
   const debouncedFetchEmployees = useDebounceFn(fetchEmployees, 500)
 
+  // ─── Refetch مع فلاتر جديدة ───────────────────────────
+  function refetch(newFilters: Record<string, any>) {
+    Object.entries(newFilters).forEach(([key, val]) => {
+      if (val === null || val === undefined) {
+        delete activeFilters[key]
+      } else {
+        activeFilters[key] = val
+      }
+    })
+    page.value = 1
+    return fetchEmployees(buildParams())
+  }
+
   // ─── Pagination Setters ───────────────────────────────
   function setPage(p: number) {
     page.value = p
-    fetchEmployees()
+    fetchEmployees(buildParams())
   }
 
   function setPageSize(s: number) {
     pageSize.value = s
     page.value = 1
-    fetchEmployees()
+    fetchEmployees(buildParams())
   }
 
   function setSearch(val: string) {
     search.value = val
     page.value = 1
-    debouncedFetchEmployees()
+    debouncedFetchEmployees(buildParams())
+  }
+
+  // ─── Filter Setters ───────────────────────────────────
+  function setStatus(val: string | null) {
+    selectedStatus.value = val
+    refetch({ 'filter[status]': val })
+  }
+
+  function setBranch(val: number | null) {
+    selectedBranch.value = val
+    refetch({ 'filter[branch_id]': val })
+  }
+
+  function setDepartment(val: number | null) {
+    selectedDepartment.value = val
+    refetch({ 'filter[department_id]': val })
+  }
+
+  function resetFilters() {
+    selectedStatus.value     = null
+    selectedBranch.value     = null
+    selectedDepartment.value = null
+    Object.keys(activeFilters).forEach(key => delete activeFilters[key])
+    page.value = 1
+    return fetchEmployees(buildParams())
   }
 
   // ─── CRUD ─────────────────────────────────────────────
@@ -88,6 +144,16 @@ export function useEmployees() {
     setPage,
     setPageSize,
     setSearch,
+
+    // Filters
+    selectedStatus,
+    selectedBranch,
+    selectedDepartment,
+    setStatus,
+    setBranch,
+    setDepartment,
+    resetFilters,
+    refetch,
 
     // Actions
     fetchEmployees,

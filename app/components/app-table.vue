@@ -401,7 +401,7 @@ function onHover(_e: Event, row: TableRow<Employee> | null) {
 <template>
   <div class="flex flex-col w-full">
     <!-- Toolbar -->
-    <div class="flex gap-2 px-4 pb-3 justify-between border-default">
+    <div class="flex gap-2 px-4 pb-0 justify-between border-default">
       <!-- Page Size -->
       <div class="flex gap-2">
         <USelect
@@ -448,7 +448,7 @@ function onHover(_e: Event, row: TableRow<Employee> | null) {
         <slot name="toolbar-prepend"></slot>
       </div>
     </div>
-    <div class="flex gap-2 px-4 pb-3 justify-end w-full">
+    <div class="flex gap-2 px-4 pb-0 justify-end w-full">
       <template v-if="linkPageAdd">
         <NuxtLink :to="linkPageAdd">
           <UButton
@@ -532,7 +532,7 @@ function onHover(_e: Event, row: TableRow<Employee> | null) {
                   root: 'p-0 bg-transparent',
                   icon: !row.original.image
                     ? row.original.status === 'active'
-                      ? 'w-full h-full bg-info'
+                      ? 'w-full h-full bg-secondary-500'
                       : 'w-full h-full bg-error'
                     : '',
                 }"

@@ -1,70 +1,61 @@
 <template>
   <UDashboardSidebar
     collapsible
-    :ui="{
-      footer: 'border-b border-default',
-      root: ' max-w-64 border-2 border-default',
-      header: 'px-2',
-    }"
+    side="left"
+    toggleSide="right"
+    mode="modal"
     :min-size="22"
     :default-size="35"
     :max-size="40"
-    mode="modal"
-    toggleSide="right"
-    side="left"
+    :ui="{
+      root: 'max-w-64 border-r border-default',
+      header: 'px-2',
+      footer: 'border-t border-default',
+    }"
   >
-    <!-- زر السحب -->
-    <!-- <template #resize-handle="{ onMouseDown, ui }">
-      <div :class="ui" @mousedown="handleResize(onMouseDown, $event)" />
-    </template> -->
+    <!-- Logo -->
+    <template #header="{ collapsed }">
+      <div class="flex items-center justify-center py-2">
+        <img
+          v-if="!collapsed"
+          key="full-logo"
+          src="/logo-512.png"
+          width="100"
+          class="w-full object-contain"
+          alt="Al-Diwan Logo"
+        />
+        <img
+          v-else
+          key="shape-logo"
+          src="/shape.png"
+          class="w-8 h-8 object-contain"
+          alt="Al-Diwan Logo"
+        />
+      </div>
+    </template>
 
-    <!-- الهيدر -->
-<template #header="{ collapsed }">
-  <div class="px-0 flex items-center justify-center">
-      <img
-    v-if="!collapsed"
-    key="full-logo"
-    src="/logo-512.png"
-    width="100"
-    class="w-full"
-    alt="Al-diwan logo"
-  />
-  <img
-    v-else
-    key="shape-logo"
-    src="/shape.png"
-    class="w-full"
-    alt="Al-diwan logo"
-  />
-  </div>
-</template>
-
-
-    <!-- المحتوى -->
+    <!-- Main Content -->
     <template #default="{ collapsed }">
-      <UDashboardSearchButton :collapsed="collapsed" />
+      <UDashboardSearchButton :collapsed="collapsed" class="mb-2" />
 
       <UNavigationMenu
         :collapsed="collapsed"
-        :items="items[0]"
+        :items="mainNavItems"
         orientation="vertical"
       />
 
       <UNavigationMenu
         :collapsed="collapsed"
-        :items="items[1]"
+        :items="bottomNavItems"
         orientation="vertical"
         class="mt-auto"
       />
     </template>
 
-    <!-- الفوتر -->
+    <!-- User Info -->
     <template #footer="{ collapsed }">
       <UButton
-        :avatar="{
-          src: userAvatar,
-          alt: userName || 'User',
-        }"
+        :avatar="{ src: userAvatar, alt: userName }"
         :label="collapsed ? undefined : userName"
         color="neutral"
         variant="ghost"
@@ -77,326 +68,140 @@
 
 <script setup lang="ts">
 import type { NavigationMenuItem } from "@nuxt/ui";
-import { fa } from "zod/locales";
 import { useAttendancePending } from "~/composables/attendances/useAttendancePending";
 import { useAuthStore } from "~/stores/auth/auth";
 
-const { records, pagination, fetchRecords } = useAttendancePending();
-const safePagination = computed(() => ({
-  total: pagination.value?.total ?? 0,
-}));
-// console.log(safePagination);
-// console.log(safePagination.value.total);
-
-// Get user data from auth store
+const { pagination, fetchRecords } = useAttendancePending();
 const authStore = useAuthStore();
-// console.log(authStore.user);
+const config = useRuntimeConfig();
 
-// Computed properties for user name and avatar
-const userName = computed(() => {
-  return authStore.user?.name || "المستخدم";
-});
+const pendingTotal = computed(() => pagination.value?.total ?? 0);
+
+// --- User Data ---------------------------------------------------
+const userName = computed(() => authStore.user?.name || "المستخدم");
 
 const userAvatar = computed(() => {
-  const config = useRuntimeConfig();
   const apiBase = config.public.apiBase || "";
+  const image = authStore.user?.employee?.image;
 
-  // Check if user has image property
-  if (authStore.user?.employee?.image) {
-    const imageUrl = authStore.user.employee?.image;
-    // If image is a relative path, prepend API base URL
-    if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
-      return `${apiBase}/${imageUrl}`;
-    }
-    // If image starts with /, it's already a full path
-    if (imageUrl && imageUrl.startsWith("/")) {
-      return `${apiBase}${imageUrl}`;
-    }
-    return imageUrl;
+  if (!image) return "https://github.com/benjamincanac.png";
+
+  if (!image.startsWith("http")) {
+    return image.startsWith("/") ? `${apiBase}${image}` : `${apiBase}/${image}`;
   }
-  // Check if user has avatar property
-  // console.log(authStore.user);
-  if (authStore.user?.employee && authStore.user.employee?.image) {
-    const avatarUrl = authStore.user.employee?.image;
-    // console.log("avatarUrl");
-    // console.log(avatarUrl);
-    // If avatar is a relative path, prepend API base URL
-    if (
-      avatarUrl &&
-      !avatarUrl.startsWith("http") &&
-      !avatarUrl.startsWith("/")
-    ) {
-      return `${apiBase}/${avatarUrl}`;
-    }
-    // If avatar starts with /, it's already a full path
-    if (avatarUrl && avatarUrl.startsWith("/")) {
-      return `${apiBase}${avatarUrl}`;
-    }
-    return avatarUrl;
-  }
-  // Default avatar or placeholder
-  return "https://github.com/benjamincanac.png";
+
+  return image;
 });
 
-// const { wrapMouseDown } = useRtlResize();
+// --- Main Navigation --------------------------------------------
+const mainNavItems = computed<NavigationMenuItem[]>(() => [
+  {
+    label: "الرئيسية",
+    icon: "i-lucide-layout-dashboard",
+    to: "/",
+  },
+  {
+    label: "سجلات للمراجعة",
+    icon: "i-lucide-bell-dot",
+    badge: pendingTotal.value || undefined,
+    to: "/attendances/pending",
+  },
 
-// function handleResize(original: (e: MouseEvent) => void, e: MouseEvent) {
-//   console.log("mousedown event clientX:", e.clientX);
-//   // نمرر اتجاه الـ sidebar (left أو right)
-//   wrapMouseDown(original, { side: "left" })(e);
-// }
+  // Employees
+  {
+    label: "الموظفون",
+    icon: "i-lucide-users-round",
+    defaultOpen: false,
+    children: [
+      { label: "قائمة الموظفين", icon: "i-lucide-user-round", to: "/employees" },
+      { label: "الأفرع",         icon: "i-lucide-git-branch",  to: "/employees/branches" },
+      { label: "الأقسام",        icon: "i-lucide-network",     to: "/employees/departments" },
+    ],
+  },
 
-const items = computed<NavigationMenuItem[][]>(() => [
-  [
-    { label: "الصفحة الرئيسية", icon: "i-lucide-house", to: "/" },
-    {
-      label: "سجلات للمراجعة",
-      icon: "i-lucide-inbox",
-      badge: safePagination.value.total,
-      to: "/attendances/pending",
-    },
-    {
-      label: "الموظفين",
-      icon: "lucide:folder-tree",
-      // to: "/work-schedules",
-      defaultOpen: false,
-      children: [
-        {
-          label: "إدارة الموظفين",
-          icon: "i-lucide-users",
-          to: "/employees",
-        },
-        {
-          label: "الأفرع",
-          icon: "gravity-ui:branches-down",
-          to: "/employees/branches",
-        },
-        {
-          label: "الأقسام",
-          icon: "lucide:folder-tree",
-          to: "/employees/departments",
-        },
-      ],
-    },
-    {
-      label: "إدارة الوصول",
-      icon: "lucide:folder-tree",
-      defaultOpen: false,
-      children: [
-        {
-          label: "إدارة مجموعات المستخدمين",
-          icon: "streamline-flex:user-collaborate-group-solid",
-          to: "/user-groups",
-        },
-        {
-          label: "الصلاحيات",
-          icon: "lucide:link",
-          to: "/access-controller/permissions",
-        },
-      ],
-    },
-    {
-      label: "الحضور والانصراف",
-      icon: "lucide:folder-tree",
-      defaultOpen: false,
-      children: [
-        // ⚙️ الإعدادات
-        {
-          label: "الإعدادات",
-          icon: "lucide:settings",
-          defaultOpen: false,
+  // Attendance
+  {
+    label: "الحضور والانصراف",
+    icon: "i-lucide-scan-face",
+    defaultOpen: false,
+    children: [
+      {
+        label: "الإعدادات",
+        icon: "i-lucide-settings",
+        defaultOpen: false,
+        children: [
+          { label: "أنظمة الدوام", icon: "i-lucide-timer",      to: "/attendances/settings/work-schedules" },
+          { label: "إسناد الدوام", icon: "i-lucide-user-check", to: "/attendances/settings/work-schedules/manage-assign" },
+        ],
+      },
+      {
+        label: "السجلات",
+        icon: "i-lucide-table-2",
+        defaultOpen: false,
+        children: [
+          { label: "حضور اليوم",  icon: "i-lucide-calendar-check-2", to: "/attendances/attendances-today" },
+          { label: "كل السجلات", icon: "i-lucide-calendar-range",    to: "/attendances/" },
+        ],
+      },
+    ],
+  },
 
-          children: [
-            {
-              label: "أنظمة الدوام",
-              icon: "lucide:clock",
-              to: "/attendances/settings/work-schedules",
-            },
-            // {
-            //   label: "جداول الدوام",
-            //   icon: "lucide:calendar-clock",
-            //   to: "/attendance/settings/work-schedules",
-            // },
-            {
-              label: "إسناد الدوام",
-              icon: "lucide:link",
-              to: "/attendances/settings/work-schedules/manage-assign",
-            },
-          ],
-        },
+  // Payroll
+  {
+    label: "الرواتب",
+    icon: "i-lucide-circle-dollar-sign",
+    defaultOpen: false,
+    children: [
+      {
+        label: "الإعدادات",
+        icon: "i-lucide-settings",
+        defaultOpen: false,
+        children: [
+          { label: "أنظمة الرواتب", icon: "i-lucide-file-cog",       to: "/payroll/settings/payroll-systems" },
+          { label: "إسناد الرواتب", icon: "i-lucide-user-round-cog", to: "/payroll/settings/payroll-systems/manage-assign" },
+        ],
+      },
+      {
+        label: "القوائم",
+        icon: "i-lucide-receipt-text",
+        defaultOpen: false,
+        children: [
+          { label: "قائمة الشهر",     icon: "i-lucide-calendar-days", to: "/payroll/payroll-items" },
+          { label: "قوائم الاعتماد",  icon: "i-lucide-badge-check",   to: "/payroll/payroll-runs" },
+          { label: "قوائم الإضافي",   icon: "i-lucide-clock-plus",    to: "/payroll/overtime/pending" },
+          { label: "الإضافي المعتمد", icon: "i-lucide-clock-check",   to: "/payroll/overtime/approved" },
+        ],
+      },
+    ],
+  },
 
-        // 📋 السجلات
-        {
-          label: "السجلات",
-          icon: "lucide:clipboard-list",
-          defaultOpen: false,
-
-          children: [
-            {
-              label: "حضور اليوم",
-              icon: "lucide:calendar-check",
-              to: "/attendances/attendances-today",
-            },
-            {
-              label: "سجلات الحضور",
-              icon: "lucide:list",
-              to: "/attendances/",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      label: "الرواتب",
-      icon: "lucide:folder-tree",
-      defaultOpen: false,
-      children: [
-        // ⚙️ الإعدادات
-        {
-          label: "الإعدادات",
-          icon: "lucide:settings",
-          defaultOpen: false,
-
-          children: [
-            {
-              label: "أنظمة الرواتب",
-              icon: "lucide:clock",
-              to: "/payroll/settings/payroll-systems",
-            },
-            // {
-            //   label: "جداول الدوام",
-            //   icon: "lucide:calendar-clock",
-            //   to: "/attendance/settings/work-schedules",
-            // },
-            {
-              label: "إسناد الرواتب",
-              icon: "lucide:link",
-              to: "/payroll/settings/payroll-systems/manage-assign",
-            },
-          ],
-        },
-
-        // 📋 السجلات
-        {
-          label: "القوائم",
-          icon: "lucide:clipboard-list",
-          defaultOpen: false,
-
-          children: [
-            {
-              label: "قائمة الشهر",
-              icon: "lucide:calendar-check",
-              to: "/payroll/payroll-items",
-            },
-            {
-              label: "قوائم الاعتماد",
-              icon: "lucide:list",
-              to: "/payroll/payroll-runs",
-            },
-            {
-              label: "قوائم الاضافي",
-              icon: "lucide:list",
-              to: "/payroll/overtime/pending",
-            },
-            {
-              label: "معتمد الاضافي",
-              icon: "lucide:list",
-              to: "/payroll/overtime/approved",
-            },
-          ],
-        },
-      ],
-    },
-  ],
-
-  // {
-  //   label: "إدارة أنظمة الدوام",
-  //   icon: "lucide:folder-tree",
-  //   // to: "/work-schedules",
-  //   defaultOpen: false,
-  //   children: [
-  //     {
-  //       label: "أنظمة الدوام",
-  //       icon: "lucide:folder-tree",
-  //       to: "/work-schedules",
-  //     },
-  //     {
-  //       label: "إسناد الدوام",
-  //       icon: "lucide:folder-tree",
-  //       to: "/work-schedules/manage-assign",
-  //     },
-  //   ],
-  // },
-  // {
-  //   label: "إدارة أنظمة الرواتب",
-  //   icon: "lucide:folder-tree",
-  //   // to: "/payroll-systems",
-  //   defaultOpen: true,
-  //   children: [
-  //     {
-  //       label: "أنظمة الرواتب",
-  //       icon: "lucide:folder-tree",
-  //       to: "/payroll-systems",
-  //     },
-  //     {
-  //       label: "إسناد الرواتب",
-  //       icon: "lucide:folder-tree",
-  //       to: "/payroll-systems/manage-assign",
-  //     },
-  //   ],
-  // },
-  // {
-  //   label: "إدارة سجلات الرواتب",
-  //   icon: "lucide:folder-tree",
-  //   // to: "/payroll-systems",
-  //   defaultOpen: true,
-  //   children: [
-  //     {
-  //       label: "قوائم الرواتب",
-  //       icon: "lucide:folder-tree",
-  //       to: "/payroll/payroll-items",
-  //     },
-  //     {
-  //       label: "قوائم الاعتماد",
-  //       icon: "lucide:folder-tree",
-  //       to: "/payroll/payroll-runs",
-  //     },
-  //   ],
-  // },
-
-  // { label: "إدارة الموظفين", icon: "i-lucide-users", to: "/employees" },
-  // {
-  //   label: "إدارة الأفرع",
-  //   icon: "gravity-ui:branches-down",
-  //   to: "/branches",
-  // },
-  // { label: "إدارة الأقسام", icon: "lucide:folder-tree", to: "/departments" },
-  // {
-  //   label: "إدارة السجلات",
-  //   icon: "lucide:folder-tree",
-  //   to: "/attendances/attendances-today",
-  // },
-  // [
-  //   {
-  //     label: "Feedback",
-  //     icon: "i-lucide-message-circle",
-  //     to: "https://github.com/nuxt-ui-templates/dashboard",
-  //     target: "_blank",
-  //   },
-  //   {
-  //     label: "Help & Support",
-  //     icon: "i-lucide-info",
-  //     to: "https://github.com/nuxt/ui",
-  //     target: "_blank",
-  //   },
-  // ],
+  // Access Control
+  {
+    label: "إدارة الوصول",
+    icon: "i-lucide-shield-check",
+    defaultOpen: false,
+    children: [
+      { label: "مجموعات المستخدمين", icon: "i-lucide-users-round", to: "/user-groups" },
+      { label: "الصلاحيات",          icon: "i-lucide-key-round",   to: "/access-controller/permissions" },
+    ],
+  },
 ]);
 
-onMounted(async () => {
-  await fetchRecords();
-});
+// --- Bottom Navigation ------------------------------------------
+const bottomNavItems = computed<NavigationMenuItem[]>(() => [
+  {
+    label: "الإعدادات",
+    icon: "i-lucide-settings",
+    to: "/settings",
+  },
+  {
+    label: "المساعدة والدعم",
+    icon: "i-lucide-circle-help",
+    to: "https://github.com/nuxt/ui",
+    target: "_blank",
+  },
+]);
+
+// --- Lifecycle --------------------------------------------------
+onMounted(fetchRecords);
 </script>
-
-<style>
-
-</style>

@@ -9,15 +9,18 @@
     }"
 
   >
-    <template #leading>
-      <UDashboardSidebarCollapse
-        variant="link"
-        name="close"
-        color="primary"
-        :portal="true"
-        />
-        <!-- label="close" -->
-    </template>
+   <template #leading>
+  <UDashboardSidebarCollapse
+    variant="link"
+    name="close"
+    :portal="true"
+    :ui="{
+      leadingIcon: 'text-primary-500',
+      base: 'text-primary-500 hover:text-primary-600',
+    }"
+  />
+</template>
+
 
 
 

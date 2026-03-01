@@ -32,3 +32,33 @@ body,
   --color-green-900: #0A5331;
   --color-green-950: #052E16;
 }
+
+
+/* assets/css/main.css */
+:root {
+  --color-primary-50:  #fdf9e7;  /* فاتح جداً - خلفيات */
+  --color-primary-100: #faf0c0;  /* فاتح - hover خفيف */
+  --color-primary-200: #f5e48a;  /* فاتح معتدل */
+  --color-primary-300: #eed966;  /* شبه أساسي فاتح */
+  --color-primary-400: #e8c93e;  /* قريب من الأساسي */
+  --color-primary-500: #e4c13c;  /* ← اللون الأساسي */
+  --color-primary-600: #c9a828;  /* أغمق قليلاً - active */
+  --color-primary-700: #a6891e;  /* غامق - borders */
+  --color-primary-800: #7d6616;  /* غامق جداً - text */
+  --color-primary-900: #54440e;  /* داكن - headings */
+  --color-primary-950: #2c2407;  /* داكن جداً */
+
+  --color-secondary-50:  #e0f7f9;  /* فاتح جداً - خلفيات */
+  --color-secondary-100: #b2ecf2;  /* فاتح - hover خفيف */
+  --color-secondary-200: #80dfe9;  /* فاتح معتدل */
+  --color-secondary-300: #4dd1df;  /* شبه أساسي فاتح */
+  --color-secondary-400: #26c3d2;  /* قريب من الأساسي */
+  --color-secondary-500: #00abbd;  /* ← اللون الأساسي */
+  --color-secondary-600: #0097a7;  /* أغمق قليلاً - active */
+  --color-secondary-700: #00798a;  /* غامق - borders */
+  --color-secondary-800: #005a6b;  /* غامق جداً - text */
+  --color-secondary-900: #003d4d;  /* داكن - headings */
+  --color-secondary-950: #001f2a;  /* داكن جداً */
+
+}
+

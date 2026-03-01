@@ -76,6 +76,28 @@ const statusOptions = [
   { label: "مكتمل", value: "incomplete" },
 ];
 
+
+const statusMap: Record<string, { label: string; color: string }> = {
+  // --- is_late ---
+  "1":   { label: "متأخر",      color: "warning" },
+  "0":   { label: "في الوقت",   color: "secondary" },
+
+  // --- is_early_leave ---
+  true:  { label: "نعم",  color: "warning" },
+  false: { label: "طبيعي",      color: "secondary" },
+
+  // --- status_label_re (attendance_status) ---
+  present:    { label: "حاضر",          color: "secondary" },
+  absent:     { label: "غائب",          color: "error"   },
+  incomplete: { label: "غير مكتمل",     color: "warning" },
+
+  // --- status_label (status) ---
+  pending:    { label: "قيد المراجعة",  color: "warning" },
+  approved:   { label: "معتمد",         color: "secondary" },
+  rejected:   { label: "مرفوض",         color: "error"   },
+};
+
+
 const tableMeta = {
   class: {
     tr: () =>
@@ -138,9 +160,17 @@ const columns = computed(() =>
               filterable: true,
             },
             date: { type: "date" },
-            undertime_time: { type: "number" },
-            status_label: { filterable: true },
+            undertime_time: { type: "number", hidden: true },
+            status_label: { filterable: true, type:'status' },
+            status_label_re: { type:'status' , hidden: true },
+            is_late: { type:'status' },
+            is_early_leave: { type:'status' },
             action: { hideable: false },
+            early_leave_time: { hidden: true },
+            late_time: { hidden: true },
+            device_id: { hidden: true },
+            required_time: { hidden: true },
+            overtime_time: { hidden: true },
           },
         },
         UButton,
@@ -292,6 +322,8 @@ function submitForm() {
     :global-filter="search"
     :column-filters="columnFilters"
     :btn-create="true"
+    :status-map="statusMap"
+
     title-btn-create="إضافة سجل حضور"
     title-btn-icon="lucide:calendar-check"
     title-btn-edit="تعديل سجل حضور"

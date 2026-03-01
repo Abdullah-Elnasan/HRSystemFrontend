@@ -16,8 +16,9 @@ export default defineAppConfig({
       }
     },
     colors: {
-      primary: 'green',
-      neutral: 'slate'
+      primary: 'primary',
+      neutral: 'slate',
+      secondary:'secondary'
     },
     table: {
       slots: {
@@ -38,7 +39,7 @@ export default defineAppConfig({
     dashboardPanel: {
 
       slots: {
-        body: 'pt-4 pb-0 sm:pt-4 sm:pb-0',
+        body: 'pt-2 pb-0 sm:pt-2 sm:pb-0',
       }
     }
   }
