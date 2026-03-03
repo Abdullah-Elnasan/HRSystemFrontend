@@ -121,10 +121,10 @@ export function useEmployees() {
   const fetchEmployeeById = (id: number | string) =>
     store.fetchEmployeeById(id)
 
-  const createEmployee = (payload: EmployeeForm | FormData) =>
+  const createEmployee = (payload: EmployeeForm) =>
     store.createEmployee(payload)
 
-  const updateEmployee = (id: number, payload: Partial<EmployeeForm> | FormData) =>
+  const updateEmployee = (id: number, payload: Partial<EmployeeForm>) =>
     store.updateEmployee(id, payload)
 
   const deleteEmployee = (id: number) =>

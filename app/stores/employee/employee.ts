@@ -3,7 +3,7 @@ import { parseError } from '~/utils/parseError'
 import type { Employee, EmployeeForm } from '~/types/employee'
 import type { apiResponse } from '~/types/table'
 import type { PaginationMeta } from '~/types/table'
-
+import { toFormData } from '~/utils/toFormData'
 interface EmployeesState {
   employees:  Employee[]
   pagination: PaginationMeta | null
@@ -66,50 +66,75 @@ export const useEmployeesStore = defineStore('employees', {
       }
     },
 
-    async createEmployee(payload: EmployeeForm | FormData) {
-      const config = useRuntimeConfig()
-      const { $api } = useNuxtApp()
+   async createEmployee(payload: EmployeeForm) {
+  const config = useRuntimeConfig()
+  const { $api } = useNuxtApp()
 
-      this._setLoading(true)
-      this._setError(null)
+  this._setLoading(true)
+  this._setError(null)
 
-      try {
-        const response = await $api<apiResponse<Employee>>(
-          `${config.public.apiBase}/api/employees`,
-          { method: 'POST', body: payload }
-        )
-        this.employees.unshift(response.data)
-        return response
-      } catch (error: unknown) {
-        this._setError(parseError(error))
-        throw error
-      } finally {
-        this._setLoading(false)
-      }
-    },
+  try {
+    // تحويل تلقائي إلى FormData إذا وُجدت صورة
+    const body = payload.image instanceof File
+      ? toFormData(payload)
+      : payload
 
-    async updateEmployee(id: number, payload: Partial<EmployeeForm> | FormData) {
-      const config = useRuntimeConfig()
-      const { $api } = useNuxtApp()
+    const response = await $api<apiResponse<Employee>>(
+      `${config.public.apiBase}/api/employees`,
+      { method: 'POST', body }
+    )
+    this.employees.unshift(response.data)
+    return response
+  } catch (error: unknown) {
+    this._setError(parseError(error))
+    throw error
+  } finally {
+    this._setLoading(false)
+  }
+},
 
-      this._setLoading(true)
-      this._setError(null)
+async updateEmployee(id: number, payload: Partial<EmployeeForm>) {
+  const config = useRuntimeConfig()
+  const { $api } = useNuxtApp()
 
-      try {
-        const response = await $api<apiResponse<Employee>>(
-          `${config.public.apiBase}/api/employees/${id}`,
-          { method: 'PUT', body: payload }
-        )
-        const index = this.employees.findIndex(e => e.id === id)
-        if (index !== -1) this.employees[index] = response.data
-        return response
-      } catch (error: unknown) {
-        this._setError(parseError(error))
-        throw error
-      } finally {
-        this._setLoading(false)
-      }
-    },
+  this._setLoading(true)
+  this._setError(null)
+
+  try {
+    let body: FormData | Partial<EmployeeForm>
+
+    if (payload.image instanceof File) {
+      const form = toFormData(payload as Record<string, any>)
+      // Laravel يحتاج هذا لـ PUT مع FormData
+      form.append('_method', 'PUT')
+      body = form
+
+      const response = await $api<apiResponse<Employee>>(
+        `${config.public.apiBase}/api/employees/${id}`,
+        { method: 'POST', body }  // POST بدل PUT عند FormData
+      )
+      const index = this.employees.findIndex(e => e.id === id)
+      if (index !== -1) this.employees[index] = response.data
+      return response
+    } else {
+      // بدون صورة → أرسل JSON عادي
+      const { image, ...rest } = payload
+      const response = await $api<apiResponse<Employee>>(
+        `${config.public.apiBase}/api/employees/${id}`,
+        { method: 'PUT', body: rest }
+      )
+      const index = this.employees.findIndex(e => e.id === id)
+      if (index !== -1) this.employees[index] = response.data
+      return response
+    }
+  } catch (error: unknown) {
+    this._setError(parseError(error))
+    throw error
+  } finally {
+    this._setLoading(false)
+  }
+},
+
 
     async deleteEmployee(id: number) {
       const config = useRuntimeConfig()
