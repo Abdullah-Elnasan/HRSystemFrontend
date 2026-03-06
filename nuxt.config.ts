@@ -5,6 +5,8 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   debug: true,
 
+  
+
   // ========================================
   // ⚙️ تغيير مسار الأيقونات من /api إلى /_icons
   // ========================================
@@ -33,6 +35,8 @@ export default defineNuxtConfig({
     '@server': './server',
     '@utils': './server/utils'
   },
+
+
 
   eslint: {
     config: {

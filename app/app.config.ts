@@ -55,5 +55,6 @@ export default defineAppConfig({
         // last: 'w-7 h-7 flex items-center justify-center '
       }
     }
-  }
+  },
+
 })

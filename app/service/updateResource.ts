@@ -24,6 +24,9 @@ export async function updateResource<T>({
       method,
       body: formData,
       credentials: 'include', // Required for Sanctum SPA cookies
+        headers: {
+    'Accept': 'application/json', // ✅
+  },
     })
 
     const data = res.data
