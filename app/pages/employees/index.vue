@@ -69,65 +69,70 @@ const statusMap: Record<string, { label: string; color: string }> = {
 const tableMeta = {
   class: {
     tr: (row: any) =>
-      row.original.status === "inactive"
-        ? "bg-error/10"
-        : "bg-white dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow",
+      row.full_name !== ""
+        ? "bg-red dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow text-start"
+        : "bg-red dark:bg-gray-900 shadow-sm ring-1 ring-default/10 rounded-lg transition-shadow",
   },
 };
 
 const columns = computed(() =>
   employees.value?.length
     ? generateColumns<Employee>(
-        employees.value,
-        {
-          labels: {
-            full_name: "الاسم",
-            email: "البريد الإلكتروني",
-            status: "الحالة",
-            branch: "الفرع",
-            department: "القسم",
-            action: "العمليات",
-            pin: "الرقم التعريفي",
-            phone: "رقم الهاتف",
-            user_group: "مجموعة المستخدمين",
-            birth_date: "الميلاد",
-            current_work_schedule: "نظام الدوام الحالي",
-            upcoming_work_schedule: "نظام الدوام القادم",
-            payroll_system: "نظام الراتب",
-          },
-          exclude: [
-            "national_id",
-            "position",
-            "image",
-            "created_at",
-            "updated_at",
-            "first_name",
-            "last_name",
-          ],
-          columns: {
-            email: { filterable: true, hidden: true },
-            full_name: {
-              filterable: true,
-              cell: ({ row }) => `${row.first_name} ${row.last_name}`,
-            },
-            status: { type: "status", cell: ({ getValue }) => getValue() },
-            phone: { hidden: true },
-            branch: { type: "object", valueKey: "name_ar" },
-            current_work_schedule: { type: "object", valueKey: "name_ar" },
-            upcoming_work_schedule: {
-              type: "object",
-              valueKey: "name_ar",
-              hidden: true,
-            },
-            payroll_system: { type: "object", valueKey: "name" },
-            department: { type: "object", valueKey: "name_ar" },
-            user_group: { type: "object", valueKey: "name_ar", hidden: true },
-            birth_date: { hidden: true },
-            action: { hideable: false },
-          },
+      employees.value,
+      {
+        labels: {
+          full_name: "الاسم",
+          email: "البريد الإلكتروني",
+          status: "الحالة",
+          branch: "الفرع",
+          department: "القسم",
+          action: "",
+          pin: "الرقم التعريفي",
+          phone: "رقم الهاتف",
+          user_group: "مجموعة المستخدمين",
+          birth_date: "الميلاد",
+          current_work_schedule: "نظام الدوام الحالي",
+          upcoming_work_schedule: "نظام الدوام القادم",
+          payroll_system: "نظام الراتب",
         },
-        UButton,
-      )
+        exclude: [
+          "national_id",
+          "position",
+          "image",
+          "created_at",
+          "updated_at",
+          "first_name",
+          "last_name",
+        ],
+        columns: {
+          email: { filterable: true, hidden: true },
+          // في employees page
+          full_name: {
+            filterable: true,
+            cell: ({ row }) => `${row.first_name} ${row.last_name}`,
+            meta: {
+              align: 'start', // custom flag
+            },
+          },
+
+          status: { type: "status", cell: ({ getValue }) => getValue() },
+          phone: { hidden: true },
+          branch: { type: "object", valueKey: "name_ar", hidden: true },
+          current_work_schedule: { type: "object", valueKey: "name_ar" },
+          upcoming_work_schedule: {
+            type: "object",
+            valueKey: "name_ar",
+            hidden: true,
+          },
+          payroll_system: { type: "object", valueKey: "name" },
+          department: { type: "object", valueKey: "name_ar" },
+          user_group: { type: "object", valueKey: "name_ar", hidden: true },
+          birth_date: { hidden: true },
+          action: { hideable: false },
+        },
+      },
+      UButton,
+    )
     : [],
 );
 
@@ -239,166 +244,79 @@ async function handleResetFilters() {
 
 <template>
   <!-- أول تحميل -->
-  <div
-    v-if="firstLoad && loading"
-    class="flex items-center justify-center py-20"
-  >
+  <div v-if="firstLoad && loading" class="flex items-center justify-center py-20">
     <span class="text-muted text-lg">جارٍ التحميل...</span>
   </div>
 
   <!-- الجدول -->
-  <AppTable
-    v-else
-    :columns="columns"
-    :data="employees ?? []"
-    :total="safePagination.total"
-    :actions="{ view: false }"
-    :page="page"
-    :page-sizes="PAGE_SIZES"
-    :page-size="pageSize"
-    :loading="loading"
-    :status-map="statusMap"
-    :meta="tableMeta"
-    :sorting="sorting"
-    :global-filter="search"
-    :column-filters="columnFilters"
-    :btn-create="true"
-    :row-clickable="true"
-    :on-row-click="goToAttendances"
-    title-btn-create="إضافة موظف"
-    title-btn-icon="material-symbols:group-add-outline-rounded"
-    title-btn-edit="تعديل موظف"
-    @update:page="setPage"
-    @update:page-size="setPageSize"
-    @update:sorting="sorting = $event"
-    @update:global-filter="setSearch"
-    @update:column-filters="columnFilters = $event"
-    @delete:row="remove"
-    @drower:open="drawer.open"
-    @update:data="drawer.open"
-  >
+  <AppTable v-else :columns="columns" :data="employees ?? []" :total="safePagination.total" :actions="{ view: false }"
+    :page="page" :page-sizes="PAGE_SIZES" :page-size="pageSize" :loading="loading" :status-map="statusMap"
+    :meta="tableMeta" :sorting="sorting" :global-filter="search" :column-filters="columnFilters" :btn-create="true"
+    :row-clickable="true" :on-row-click="goToAttendances" title-btn-create="إضافة موظف"
+    title-btn-icon="material-symbols:group-add-outline-rounded" title-btn-edit="تعديل موظف" @update:page="setPage"
+    @update:page-size="setPageSize" @update:sorting="sorting = $event" @update:global-filter="setSearch"
+    @update:column-filters="columnFilters = $event" @delete:row="remove" @drower:open="drawer.open"
+    @update:data="drawer.open">
     <template #toolbar-prepend>
       <div class="flex flex-wrap gap-2 items-center">
         <!-- فلتر الحالة -->
         <div class="flex gap-2 items-center">
           <label class="text-sm text-muted font-medium">الحالة:</label>
-          <USelectMenu
-            v-model="selectedStatusObj"
-            :items="statusOptions"
-            by="value"
-            option-attribute="label"
-            placeholder="كل الحالات"
-            class="w-28"
-            size="sm"
-            trailing-icon="mi:select"
-          />
+          <USelectMenu v-model="selectedStatusObj" :items="statusOptions" by="value" option-attribute="label"
+            placeholder="كل الحالات" class="w-28" size="sm" trailing-icon="mi:select" />
         </div>
 
         <!-- فلتر الفرع -->
         <div class="flex gap-2 items-center">
           <label class="text-sm text-muted font-medium">الفرع:</label>
-          <USelectMenu
-            v-model="selectedBranchObj"
-            :items="branches"
-            :loading="branchesLoading"
-            searchable
-            searchable-placeholder="ابحث عن فرع..."
-            by="value"
-            option-attribute="label"
-            placeholder="كل الفروع"
-            class="w-32"
-            size="sm"
-            trailing-icon="mi:select"
-            @update:query="branchSearchQuery = $event"
-          />
+          <USelectMenu v-model="selectedBranchObj" :items="branches" :loading="branchesLoading" searchable
+            searchable-placeholder="ابحث عن فرع..." by="value" option-attribute="label" placeholder="كل الفروع"
+            class="w-32" size="sm" trailing-icon="mi:select" @update:query="branchSearchQuery = $event" />
         </div>
 
         <!-- فلتر القسم -->
         <div class="flex gap-2 items-center">
           <label class="text-sm text-muted font-medium">القسم:</label>
-          <USelectMenu
-            v-model="selectedDepartmentObj"
-            :items="departments"
-            :loading="departmentsLoading"
-            searchable
-            searchable-placeholder="ابحث عن قسم..."
-            by="value"
-            option-attribute="label"
-            placeholder="كل الأقسام"
-            class="w-32"
-            size="sm"
-            trailing-icon="mi:select"
-            @update:query="departmentSearchQuery = $event"
-          />
+          <USelectMenu v-model="selectedDepartmentObj" :items="departments" :loading="departmentsLoading" searchable
+            searchable-placeholder="ابحث عن قسم..." by="value" option-attribute="label" placeholder="كل الأقسام"
+            class="w-32" size="sm" trailing-icon="mi:select" @update:query="departmentSearchQuery = $event" />
         </div>
 
         <!-- إعادة تعيين -->
-        <UButton
-          icon="i-lucide-x"
-          label="إعادة تعيين"
-          size="sm"
-          variant="ghost"
-          color="neutral"
-          @click="handleResetFilters"
-        />
+        <UButton icon="i-lucide-x" label="إعادة تعيين" size="sm" variant="ghost" color="neutral"
+          @click="handleResetFilters" />
       </div>
     </template>
   </AppTable>
 
   <!-- Drawer -->
   <ClientOnly>
-    <UDrawer
-      v-model:open="drawer.isOpen.value"
-      direction="left"
-      :title="drawer.title.value"
-      :ui="{
-        body: 'drower space-y-5 pt-0',
-        header: 'hidden',
-        title: 'text-primary',
-        overlay: 'bg-green-400/30',
-        content:
-          'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
-      }"
-    >
+    <UDrawer v-model:open="drawer.isOpen.value" direction="left" :title="drawer.title.value" :ui="{
+      body: 'drower space-y-5 pt-0',
+      header: 'hidden',
+      title: 'text-primary',
+      overlay: 'bg-green-400/30',
+      content:
+        'shadow-[0_1px_2px_0_rgba(60,64,67,0.3),0_1px_3px_1px_rgba(60,64,67,0.15)] ps-2',
+    }">
       <template #body>
         <div class="flex items-center justify-end gap-2">
-          <h2 class="text-highlighted font-semibold">
+          <h2 class=" font-semibold text-secondary">
             {{ drawer.title.value }}
           </h2>
-          <UIcon
-            :name="
-              drawer.mode.value === 'edit'
-                ? 'solar:pen-new-round-linear'
-                : 'ic:baseline-control-point-duplicate'
-            "
-            class="size-5"
-          />
+          <UIcon :name="drawer.mode.value === 'edit'
+              ? 'solar:pen-new-round-linear'
+              : 'ic:baseline-control-point-duplicate'
+            " class="size-5 text-primary"  />
         </div>
 
-        <FormsEmployeeForm
-          ref="formRef"
-          v-model="drawer.formModel"
-          :mode="drawer.mode.value"
-          :columns="2"
-          class="min-w-150 items-start"
-          @submit="onSubmit"
-        />
+        <FormsEmployeeForm ref="formRef" v-model="drawer.formModel" :mode="drawer.mode.value" :columns="2"
+          class="min-w-150 items-start" @submit="onSubmit" />
       </template>
 
       <template #footer>
-        <UButton
-          label="إرسال"
-          color="neutral"
-          class="justify-center"
-          @click="submitForm()"
-        />
-        <UButton
-          label="إغلاق"
-          color="neutral"
-          variant="outline"
-          class="justify-center"
-          @click="drawer.close()"
-        />
+        <UButton label="إرسال" color="primary" class="justify-center" @click="submitForm()" />
+        <UButton label="إغلاق" color="neutral" variant="outline" class="justify-center" @click="drawer.close()" />
       </template>
     </UDrawer>
   </ClientOnly>

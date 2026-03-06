@@ -20,6 +20,7 @@ export type TableActionItem = {
   enabled?: boolean;
   label?: string;
   icon?: string;
+  class?: string;
 };
 
 export type TableActionsDisplayMode = 'auto' | 'dropdown' | 'inline';

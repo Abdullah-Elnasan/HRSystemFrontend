@@ -2,7 +2,9 @@
 import type { FormSubmitEvent } from "#ui/types";
 import { useFormModel } from "~/composables/useFormModel";
 
-/* ================== Types ================== */
+// =========================================================
+// Types
+// =========================================================
 
 export type FieldComponent =
   | "input"
@@ -10,17 +12,15 @@ export type FieldComponent =
   | "select"
   | "select-menu"
   | "file"
-  | "switch" // ✅ جديد
+  | "switch"
   | "custom";
 
 export interface Field<T> {
   name: keyof T;
   label: string;
   component?: FieldComponent;
-
   componentProps?: Record<string, any>;
   wrapperProps?: Record<string, any>;
-
   /** Select / SelectMenu */
   items?: any[];
   multiple?: boolean;
@@ -31,7 +31,9 @@ export interface Field<T> {
   colSpan?: 1 | 2 | 3 | 4;
 }
 
-/* ================== Props / Emits ================== */
+// =========================================================
+// Props & Emits
+// =========================================================
 
 const props = defineProps<{
   columns?: 1 | 2 | 3 | 4;
@@ -47,50 +49,71 @@ const emit = defineEmits<{
   (e: "submit", value: T): void;
 }>();
 
-/* ================== State ================== */
+// =========================================================
+// State
+// =========================================================
 
 const gridCols = computed(() => props.columns ?? 2);
 const form = useFormModel(toRef(props, "modelValue"), emit);
 
-/* ================== Handlers ================== */
+// =========================================================
+// Icon Color Token
+// =========================================================
 
-const onSubmit = (_: FormSubmitEvent<T>) => {
-  emit("submit", form.value);
-};
+/**
+ * Shared `ui` config injected into every UInput and USelectMenu.
+ *
+ * Nuxt UI exposes a `leadingIcon` / `trailingIcon` slot class token
+ * inside the component's `ui` prop. We use `text-[var(...)]` to point
+ * directly at our CSS custom property so the icon colour follows the
+ * brand without any extra CSS.
+ *
+ * --color-secondary-600 (#0097A7) is the brand's "teal active" shade —
+ * visible on white but not as heavy as -800.
+ */
+const inputUi = {
+  leadingIcon: "text-[var(--color-secondary-600)]",
+  trailingIcon: "text-[var(--color-secondary-400)]",
+} as const;
 
-const submit = () => {
-  console.log(form.value);
-  emit("submit", form.value);
-};
+/**
+ * USelectMenu uses slightly different token names.
+ * `leadingIcon`  → the field icon passed via componentProps.icon
+ * `trailingIcon` → the chevron / trailing arrow
+ */
+const selectUi = {
+  leadingIcon:  "text-[var(--color-secondary-600)]",
+  trailingIcon: "text-[var(--color-secondary-400)]",
+} as const;
 
-const loadingFields = ref<any>({
-  department_id: false,
-  branch_id: false,
-});
+// =========================================================
+// Handlers
+// =========================================================
 
-const searchTimeouts = ref<Record<string, any>>({});
+const onSubmit = (_: FormSubmitEvent<T>) => emit("submit", form.value);
+const submit   = () => emit("submit", form.value);
 
-const onSelectSearch = (field: Field<T>, query: string) => {
+const loadingFields     = ref<Record<string, boolean>>({});
+const searchTimeouts    = ref<Record<string, ReturnType<typeof setTimeout>>>({});
+
+/**
+ * Debounced search handler for searchable select menus.
+ * Waits 300 ms after the user stops typing before calling the API.
+ */
+function onSelectSearch(field: Field<T>, query: string) {
   const key = String(field.name);
-
-  if (searchTimeouts.value[key]) {
-    clearTimeout(searchTimeouts.value[key]);
-  }
+  clearTimeout(searchTimeouts.value[key]);
 
   searchTimeouts.value[key] = setTimeout(async () => {
-    if (!query) return;
-
-    loadingFields.value[field.name] = true;
-
+    if (!query || !field.searchApi) return;
+    loadingFields.value[key] = true;
     try {
-      const res = await field.searchApi!(query);
-      console.log(res);
-      field.items = [...res];
+      field.items = [...(await field.searchApi(query))];
     } finally {
-      loadingFields.value[field.name] = false;
+      loadingFields.value[key] = false;
     }
   }, 300);
-};
+}
 
 defineExpose({ submit });
 </script>
@@ -108,9 +131,7 @@ defineExpose({ submit });
     <template v-for="field in fields" :key="String(field.name)">
       <div
         :class="[
-          field.colSpan === 1 &&
-            field.component === 'file' &&
-            'col-span-1 h-32',
+          field.colSpan === 1 && field.component === 'file' && 'col-span-1 h-full',
           field.colSpan === 1 && 'col-span-1',
           field.colSpan === 2 && 'col-span-2',
           field.colSpan === 3 && 'col-span-3',
@@ -122,131 +143,101 @@ defineExpose({ submit });
           :name="String(field.name)"
           v-bind="field.wrapperProps"
           :required="field.componentProps?.required || false"
-        >
-          <!-- ================== Input (default + date) ================== -->
+
+          >
+
+          <!-- ── Text Input ──────────────────────────────── -->
           <UInput
             v-if="!field.component || field.component === 'input'"
             v-model="form[field.name]"
+            :ui="inputUi"
             v-bind="field.componentProps"
-            :ui="{
-              root: 'block',
-            }"
-            :placeholder="`أدخل ${field.label}`"
+            :placeholder="field.componentProps?.placeholder ?? `أدخل ${field.label}`"
+            class="block w-full"
           />
 
-          <!-- ================== Textarea ================== -->
+          <!-- ── Textarea ───────────────────────────────── -->
           <UTextarea
-            :ui="{
-              root: 'block',
-            }"
             v-else-if="field.component === 'textarea'"
             v-model="form[field.name]"
+            :ui="inputUi"
             v-bind="field.componentProps"
-            :placeholder="`أدخل ${field.label}`"
+            :placeholder="field.componentProps?.placeholder ?? `أدخل ${field.label}`"
+            class="block w-full"
           />
 
-          <!-- ================== Select Menu (Search + API) ================== -->
-          <!-- داخل GenericForm.vue -->
+          <!-- ── Basic Select ───────────────────────────── -->
           <USelect
             v-else-if="field.component === 'select'"
             v-model="form[field.name]"
-            :items="field?.items"
-            :icon="field.componentProps?.icon"
+            :items="field.items"
             :multiple="field.multiple"
-            class="w-full"
+            :ui="selectUi"
             trailing-icon="mi:select"
+            class="w-full"
             v-bind="field.componentProps"
           />
-          <!-- <USelectMenu
+
+          <!-- ── Searchable Select Menu ─────────────────── -->
+          <!--
+            Icon color is set via :ui="selectUi".
+            Nuxt UI's USelectMenu applies `leadingIcon` to the
+            left icon and `trailingIcon` to the chevron, both of
+            which we map to our brand CSS variables.
+          -->
+          <USelectMenu
             v-else-if="field.component === 'select-menu'"
             v-model="form[field.name]"
-            :items="field?.items"
-            :icon="field.componentProps?.icon"
+            :items="field.items"
             :multiple="field.multiple"
             :searchable="field.searchable"
-            :search-input="{
-              placeholder: `ابحث عن ${field.label}`,
-              icon: 'i-lucide-search',
-            }"
-            class="w-full"
+            :ui="selectUi"
             trailing-icon="mi:select"
             :loading="
               props.selectLoading?.[field.name] ||
               loadingFields[String(field.name)] ||
               false
             "
-            loading-icon="i-lucide-loader"
-            @update:searchTerm="onSelectSearch(field, $event)"
+            loading-icon="i-lucide-loader-circle"
+            class="w-full"
             v-bind="field.componentProps"
-          /> -->
+            @update:searchTerm="onSelectSearch(field, $event)"
+          />
 
-                    <USelectMenu
-  v-else-if="field.component === 'select-menu'"
-  v-model="form[field.name]"
-  :items="field?.items"
-  :icon="field.componentProps?.icon"
-  :multiple="field.multiple"
-  :searchable="field.searchable"
-  class="w-full"
-  trailing-icon="mi:select"
-  :loading="
-    props.selectLoading?.[field.name] ||
-    loadingFields[String(field.name)] ||
-    false
-  "
-  loading-icon="i-lucide-loader"
-  @update:searchTerm="onSelectSearch(field, $event)"
-  v-bind="field.componentProps"
->
-  <!-- ✅ حل المشكلة -->
-  <!-- <template v-if="field.renderLabel" #item-label>
-    <span>
-      {{ field.renderLabel(form[field.name], field.items) }}
-    </span>
-  </template> -->
-</USelectMenu>
-          <!-- ================== File Upload ================== -->
+          <!-- ── File Upload ────────────────────────────── -->
           <UFileUpload
-            :ui="{
-              root: 'block',
-              file: 'h-32',
-            }"
             v-else-if="field.component === 'file'"
             v-model="form[field.name]"
+            :ui="{ root: 'h-full block', file: 'h-full'}"
             v-bind="field.componentProps"
           />
 
-          <!-- ================== Switch ================== -->
+          <!-- ── Toggle Switch ──────────────────────────── -->
           <USwitch
             v-else-if="field.component === 'switch'"
             v-model="form[field.name]"
             :label="
-              (() => {
-                const val = Boolean(form[field.name]);
-                return val
-                  ? field.componentProps?.trueLabel
-                  : field.componentProps?.falseLabel;
-              })()
+              Boolean(form[field.name])
+                ? field.componentProps?.trueLabel
+                : field.componentProps?.falseLabel
             "
             v-bind="field.componentProps"
           />
 
-          <!-- ================== Custom ================== -->
+          <!-- ── Custom Slot ────────────────────────────── -->
           <slot
             v-else-if="field.component === 'custom'"
             :name="`field-${String(field.name)}`"
             :model="form"
-            :ui="{
-              root: 'block',
-            }"
           />
+
         </UFormField>
       </div>
     </template>
   </UForm>
 </template>
+
 <style>
-.rtl {
-  direction: rtl !important;
-}
+/* RTL support applied globally so child portals (dropdowns) also inherit it */
+.rtl { direction: rtl !important; }
 </style>

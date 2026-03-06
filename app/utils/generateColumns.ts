@@ -10,6 +10,7 @@ declare module '@tanstack/table-core' {
     pinnable?: boolean
     type?: 'text' | 'number' | 'date' | 'status' | 'object'
     valueKey?: string
+    [key: string]: any // ✅
   }
 }
 
@@ -24,6 +25,7 @@ export type ColumnOptions = {
   cell?: (props: any) => any
   header?: (column: any) => any
   valueKey?: string
+  meta?: Record<string, any>
 }
 
 export type GenerateColumnsOptions<T> = {
@@ -64,7 +66,6 @@ export function generateColumns<T extends Record<string, any>>(
 
   const keys = [...Object.keys(first), 'action'] as (keyof T | 'action')[]
 
-
   return keys
     .filter((key) => !options.exclude?.includes(key))
     .map((key) => {
@@ -81,7 +82,6 @@ export function generateColumns<T extends Record<string, any>>(
 
           const label = options.labels?.[key] ?? col?.label ?? String(key)
 
-          // ⚡ لا تغلف div جديد بالكامل، أضف زر التثبيت كـ fragment
           const children = []
           if (col?.pinnable) {
             children.push(getHeaderPin(ctx.column, 'left', UButton))
@@ -100,6 +100,7 @@ export function generateColumns<T extends Record<string, any>>(
           pinnable: col?.pinnable ?? false,
           type: col?.type ?? 'text',
           valueKey: col?.valueKey,
+          ...(col?.meta ?? {}), // ✅
         },
       }
 

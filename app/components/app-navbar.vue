@@ -1,13 +1,13 @@
 <template>
   <UDashboardNavbar
     :title="title"
+    :ui="{ title: 'text-secondary' }"
     :portal="true"
     :toggle="{
       color: 'primary',
       variant: 'subtle',
       class: 'rounded-full',
     }"
-
   >
    <template #leading>
   <UDashboardSidebarCollapse
